@@ -199,3 +199,9 @@
 ## Reference: Total Table Count
 
 17 tables (`roles`, `teams`, `users`, `lead_sources`, `leads`, `accounts`, `contacts`, `pipeline_stages`, `loss_reasons`, `opportunities`, `activity_types`, `activities`, `audit_logs`, `scoring_rules`, `scoring_criteria`, `assignment_rules`, `revoked_tokens`) — exceeds the 15+ target metric while every table is traceable to at least one BR/FR/ADR.
+
+---
+
+## Addendum: Soft Delete Pattern (Phase 2 Decision, 2026-07-05)
+
+`users`, `leads`, `accounts`, `contacts`, `opportunities`, and `activities` each gain a `deleted_at TIMESTAMP NULL` column, decided during Phase 2 scaffolding (not in the original Phase 1 baseline). A DELETE request sets `deleted_at = now()` rather than removing the row; all default list/get queries filter `WHERE deleted_at IS NULL`. Rationale: hard-deleting an Account with existing Opportunities/Activities would force either a cascade (losing pipeline history) or a restrict (blocking legitimate deletes) — soft delete avoids both while the audit log (BR-14) still records the deletion event itself. This does not change any BR/FR numbering; it is an implementation detail of "DELETE" as already specified in FR-01–FR-27.

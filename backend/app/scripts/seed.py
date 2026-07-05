@@ -141,6 +141,7 @@ def seed_users(db, ref: dict) -> list[User]:
             email=f"manager.{team.region.lower()}@northwindsales.com", password_hash=password_hash,
             first_name=fake.first_name(), last_name=fake.last_name(),
             role_id=ref["roles"]["Manager"].id, team_id=team.id,
+            quota=random.choice([300_000, 350_000, 400_000]),  # BR-23
         )
         users.append(manager)
 
@@ -150,6 +151,7 @@ def seed_users(db, ref: dict) -> list[User]:
             email=f"rep{i+1}@northwindsales.com", password_hash=password_hash,
             first_name=fake.first_name(), last_name=fake.last_name(),
             role_id=ref["roles"]["Rep"].id, team_id=team.id,
+            quota=random.choice([150_000, 200_000, 250_000, 300_000]),  # BR-23
         )
         users.append(rep)
 

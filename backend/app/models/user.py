@@ -2,11 +2,11 @@
 User model.
 
 Traces to: Data_Dictionary.md SS3; FR-38, FR-42; NFR-03 (bcrypt hash stored,
-never plaintext); soft-delete addendum (deleted_at).
+never plaintext); soft-delete addendum (deleted_at); BR-23 (quota, Phase 4).
 """
 import uuid
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -28,5 +28,6 @@ class User(Base, UUIDPKMixin, TimestampMixin, SoftDeleteMixin):
         PG_UUID(as_uuid=True), ForeignKey("teams.id"), nullable=True, index=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    quota: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
 
     role: Mapped["Role"] = relationship("Role", lazy="joined")

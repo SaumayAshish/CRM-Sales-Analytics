@@ -41,7 +41,7 @@
 
 | KPI | Formula (SQL-friendly) | Business Meaning | Owner Role | Refresh | Target/Threshold |
 |---|---|---|---|---|---|
-| Quota Attainment per Rep | `SUM(amount) WHERE owner_id=:rep AND stage='Closed Won' AND period / rep.quota` | Individual performance against goal | Manager, Rep (own only) | Weekly | ≥ 100% |
+| Quota Attainment per Rep | `closed_won_revenue / users.quota` (via `vw_rep_performance.quota_attainment`, added Phase 4 / BR-23; NULL when quota is unset, never treated as 0%) | Individual performance against goal | Manager, Rep (own only) | Weekly | ≥ 100% |
 | Activities Logged per Rep | `COUNT(*) FROM activities WHERE logged_by=:rep GROUP BY period` | Activity/engagement volume, a leading indicator | Manager | Daily | ≥ 20 activities/week (illustrative) |
 | Win Rate per Rep | `COUNT(*) WHERE owner_id=:rep AND stage='Closed Won' / COUNT(*) WHERE owner_id=:rep AND stage IN ('Closed Won','Closed Lost')` | Individual close effectiveness | Manager | Weekly | Informational, compared to team average |
 | Average Response Time to Assigned Lead | `AVG(first_activity_at - assigned_at) GROUP BY owner_id` | How quickly a rep engages a newly assigned lead | Manager | Daily | Under 4 business hours (illustrative) |

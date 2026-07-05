@@ -37,6 +37,7 @@ def create_user(
         last_name=payload.last_name,
         role_id=payload.role_id,
         team_id=payload.team_id,
+        quota=payload.quota,
     )
     db.add(user)
     db.flush()

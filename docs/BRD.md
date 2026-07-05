@@ -132,6 +132,7 @@ Any request to add the above must be raised as a formal scope change and evaluat
 | BR-20 | Duplicate Account detection (matching on company name/domain) must warn the user at creation time, though the system may allow an explicit override with justification. |
 | BR-21 | Pipeline stage transitions must follow an Admin-configurable, ordered set of allowed next-stages per stage; a transition outside that set requires a Manager/Admin override, logged with a reason (extends BR-06 with the specific transition-graph mechanism, added at Phase 3 kickoff — see `docs/PHASE_REPORTS/phase_3.md`). |
 | BR-22 | Workflow automation rules may trigger an in-app notification to the affected record's owner as one of their actions; notification delivery beyond in-app (email/SMS) is explicitly out of scope and must be stubbed/logged, not silently no-op'd (added at Phase 3 kickoff). |
+| BR-23 | Each Rep/Manager user may have an assigned quota (a quarterly revenue target); Quota Attainment is computed as closed-won revenue divided by quota. A null quota means the KPI is not applicable for that user (e.g. Admin/Viewer, or a Rep with no target set yet) and must be surfaced as such, never silently treated as zero attainment (added at Phase 4 kickoff, closing the gap flagged in `docs/PHASE_REPORTS/phase_3.md`). |
 
 ---
 

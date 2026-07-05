@@ -11,14 +11,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.api.deps import ROLE_ADMIN, ROLE_MANAGER, CurrentUser, require_role
+from app.api.deps import ROLE_ADMIN, ROLE_MANAGER, ROLE_REP, CurrentUser, require_role
 from app.db.session import get_db
 
 router = APIRouter()
 
 
-def _rows_as_dicts(db: Session, query: str) -> list[dict]:
-    result = db.execute(text(query))
+def _rows_as_dicts(db: Session, query: str, params: dict | None = None) -> list[dict]:
+    result = db.execute(text(query), params or {})
     return [dict(row._mapping) for row in result]
 
 
@@ -31,8 +31,15 @@ def pipeline_summary(
 
 @router.get("/rep-performance")
 def rep_performance(
-    db: Session = Depends(get_db), current_user: CurrentUser = Depends(require_role([ROLE_ADMIN, ROLE_MANAGER]))
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role([ROLE_ADMIN, ROLE_MANAGER, ROLE_REP])),
 ) -> list[dict]:
+    """KPI_Catalog.md: Manager/Admin see all reps; a Rep sees only their own
+    row (BR-23's quota attainment must be visible to the Rep it belongs to)."""
+    if current_user.role == ROLE_REP:
+        return _rows_as_dicts(
+            db, "SELECT * FROM vw_rep_performance WHERE user_id = :user_id", {"user_id": str(current_user.id)}
+        )
     return _rows_as_dicts(db, "SELECT * FROM vw_rep_performance")
 
 

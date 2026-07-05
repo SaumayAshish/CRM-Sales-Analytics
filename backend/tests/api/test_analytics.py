@@ -40,11 +40,28 @@ def test_pipeline_summary_matches_raw_query(client, db, reference_data):
     assert float(qualification_row["weighted_value"]) == 3000.0
 
 
-def test_rep_performance_endpoint_forbidden_for_rep(client, db, reference_data):
-    make_user(db, reference_data["roles"]["Rep"].id, email="rep@example.com")
+def test_rep_performance_scoped_to_own_row_for_rep(client, db, reference_data):
+    """BR-23/KPI_Catalog.md: a Rep may see quota attainment, but only their
+    own row, not the whole team's."""
+    rep = make_user(db, reference_data["roles"]["Rep"].id, email="rep@example.com")
+    other_rep = make_user(db, reference_data["roles"]["Rep"].id, email="other_rep@example.com")
     db.commit()
     headers = auth_header(client, "rep@example.com")
 
     response = client.get("/api/v1/analytics/rep-performance", headers=headers)
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["user_id"] == str(rep.id)
+    assert str(other_rep.id) not in [row["user_id"] for row in body]
+
+
+def test_rep_performance_visible_to_manager_and_admin(client, db, reference_data):
+    make_user(db, reference_data["roles"]["Manager"].id, email="mgr@example.com")
+    db.commit()
+    headers = auth_header(client, "mgr@example.com")
+
+    response = client.get("/api/v1/analytics/rep-performance", headers=headers)
+
+    assert response.status_code == 200

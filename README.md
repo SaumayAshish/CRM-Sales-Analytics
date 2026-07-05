@@ -1,6 +1,6 @@
 # CRM & Sales Analytics Platform
 
-> **Status:** Phases 1–4 complete (BA Foundation, Backend Core, Backend Advanced, Frontend). Phase 5 (Analytics/Power BI) and Phase 6 (Ship & Polish) remain.
+> **Status:** Phases 1–4 complete; Phase 5 (Analytics Layer) SQL/docs/frontend shell complete, Power BI `.pbix` build pending (see `analytics/README.md`). Phase 6 (Ship & Polish) remains.
 
 <!-- HOOK — to be written in Phase 6. One or two sentences: the business problem, who this is for, and the single most impressive fact (e.g., "40+ documented REST APIs, 4 Power BI dashboards, 70%+ test coverage, built solo from BRD to deployment"). -->
 
@@ -95,6 +95,9 @@ This project follows a docs-first delivery model. The full BA artifact set lives
 | [RACI_Matrix.md](docs/RACI_Matrix.md) | Role accountability, in-app and delivery governance |
 | [Architecture.md](docs/Architecture.md) / [ADR/](docs/ADR/) | Technical architecture and decision records |
 | [PHASE_REPORTS/](docs/PHASE_REPORTS/) | Per-phase completion reports |
+
+The analytics layer (SQL views, KPI cross-check, Power BI build instructions) lives in
+[`analytics/`](analytics/) — see [`analytics/README.md`](analytics/README.md).
 
 ## Live Demo
 

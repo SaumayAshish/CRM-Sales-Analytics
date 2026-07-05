@@ -32,6 +32,7 @@ from app.services.scoring_engine import evaluate_lead_score
 
 SEED = 42
 DEMO_PASSWORD = "DemoPass123!"
+ADMIN_PASSWORD = "Caesar@0&"
 
 random.seed(SEED)
 fake = Faker()
@@ -131,8 +132,8 @@ def seed_users(db, ref: dict) -> list[User]:
     password_hash = hash_password(DEMO_PASSWORD)
 
     admin = User(
-        email="admin@northwindsales.com", password_hash=password_hash,
-        first_name="Priya", last_name="Nandakumar", role_id=ref["roles"]["Admin"].id, team_id=None,
+        email="admin@northwindsales.com", password_hash=hash_password(ADMIN_PASSWORD),
+        first_name="Saumay", last_name="Ashish", role_id=ref["roles"]["Admin"].id, team_id=None,
     )
     users.append(admin)
 

@@ -73,8 +73,8 @@ cp .env.example .env
 npm run dev   # http://localhost:5173
 ```
 
-Log in with any seeded demo user (e.g. `admin@northwindsales.com`) and the shared password
-`DemoPass123!` (see `backend/app/scripts/seed.py`).
+Log in with any seeded demo Manager/Rep/Viewer user and the shared password `DemoPass123!`, or the
+Admin account (`admin@northwindsales.com` / `Caesar@0&`) — see `backend/app/scripts/seed.py`.
 
 A single `docker-compose up` for the full stack (including the frontend container) is Phase 6 scope.
 

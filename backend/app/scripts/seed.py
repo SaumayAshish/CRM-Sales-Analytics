@@ -285,6 +285,65 @@ def score_and_assign_leads(db, leads: list[Lead]) -> None:
     db.flush()
 
 
+def seed_lead_conversions(
+    db, ref: dict, leads: list[Lead]
+) -> tuple[list[Account], list[Contact], list[Opportunity]]:
+    """Mirrors the real FR-06 conversion flow (Account+Contact+Opportunity,
+    linked via converted_from_lead_id) for every lead flagged is_converted
+    during scoring -- without this, is_converted is just a cosmetic flag
+    with no backing data, and vw_lead_source_roi / vw_sales_funnel would
+    show zero attributed revenue for every source (caught by querying the
+    seeded database directly, not assumed correct from the code)."""
+    accounts: list[Account] = []
+    contacts: list[Contact] = []
+    opportunities: list[Opportunity] = []
+
+    for lead in leads:
+        if not lead.is_converted:
+            continue
+        owner_id = lead.assigned_to
+        if owner_id is None:
+            continue
+
+        account = Account(
+            name=lead.company, owner_id=owner_id, converted_from_lead_id=lead.id,
+            created_at=lead.created_at + timedelta(days=random.randint(1, 14)),
+        )
+        db.add(account)
+        db.flush()
+        accounts.append(account)
+
+        contact = Contact(
+            account_id=account.id, first_name=lead.first_name, last_name=lead.last_name,
+            email=lead.email, phone=lead.phone, is_primary=True, created_at=account.created_at,
+        )
+        db.add(contact)
+        contacts.append(contact)
+
+        stage = random.choices(
+            ref["stages"], weights=[0.30, 0.22, 0.18, 0.12, 0.12, 0.06], k=1
+        )[0]
+        closed_at = None
+        loss_reason_id = None
+        if stage.name in ("Closed Won", "Closed Lost"):
+            closed_at = account.created_at + timedelta(days=random.randint(10, 60))
+            if stage.name == "Closed Lost":
+                loss_reason_id = random.choice(ref["reasons"]).id
+
+        opportunity = Opportunity(
+            name=f"{lead.company} - New Business", account_id=account.id, owner_id=owner_id,
+            stage_id=stage.id, amount=round(random.uniform(5_000, 150_000), 2),
+            probability=stage.default_probability,
+            expected_close_date=(account.created_at + timedelta(days=random.randint(30, 120))).date(),
+            loss_reason_id=loss_reason_id, closed_at=closed_at, created_at=account.created_at,
+        )
+        db.add(opportunity)
+        opportunities.append(opportunity)
+
+    db.flush()
+    return accounts, contacts, opportunities
+
+
 def seed_opportunities(db, ref: dict, accounts: list[Account], users: list[User]) -> list[Opportunity]:
     owners = [u for u in users if u.role_id in (ref["roles"]["Manager"].id, ref["roles"]["Rep"].id)]
     stage_weights = [0.30, 0.22, 0.18, 0.12, 0.12, 0.06]  # funnel-shaped: fewer deals survive to close
@@ -377,11 +436,17 @@ def main() -> None:
 
         ref = seed_reference_data(db)
         users = seed_users(db, ref)
-        accounts, contacts = seed_accounts_and_contacts(db, ref, users)
+        direct_accounts, direct_contacts = seed_accounts_and_contacts(db, ref, users)
         leads = seed_raw_leads(db, ref)
         seed_lead_signal_activities(db, ref, leads, users)
         score_and_assign_leads(db, leads)
-        opportunities = seed_opportunities(db, ref, accounts, users)
+        converted_accounts, converted_contacts, converted_opportunities = seed_lead_conversions(db, ref, leads)
+        direct_opportunities = seed_opportunities(db, ref, direct_accounts, users)
+
+        accounts = direct_accounts + converted_accounts
+        contacts = direct_contacts + converted_contacts
+        opportunities = direct_opportunities + converted_opportunities
+
         seed_bulk_activities(db, ref, users, leads, accounts, contacts, opportunities, count=4500)
 
         db.commit()

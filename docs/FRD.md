@@ -175,3 +175,65 @@ Reporting requirements are fully specified in `KPI_Catalog.md`. At the functiona
 ## 9. Acceptance Criteria Summary
 
 Acceptance criteria are specified per-requirement in §2 above. Aggregate Phase 1 acceptance for this FRD is: **Sales Ops Manager reviews and signs off** (per RACI §2) that every FR-xx traces to a BR-xx, every module has at least one testable acceptance criterion, and no FR references a technology or architecture outside `Architecture.md`.
+
+---
+
+## 10. Phase 3 Functional Requirements (Backend Advanced)
+
+Added at Phase 3 kickoff (2026-07-05), per CLAUDE.md's working rule that a Phase 1/2 doc gap discovered during implementation is corrected in the same commit rather than left stale. These FRs make the engines that Phase 2 left as inert configuration (`scoring_rules`, `assignment_rules`) actually run, and add the Backend Advanced capabilities named in `CLAUDE.md`'s 6-phase plan.
+
+### Pipeline Stage Engine
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-46 | Each pipeline stage shall declare its allowed next-stage(s) via an Admin-configurable `allowed_next_stage_ids` field, not a hardcoded transition graph. | BR-21 | Changing allowed transitions via `POST/PATCH /pipeline/stages` takes effect on the next `advance-stage` call without a deployment. |
+| FR-47 | An `advance-stage` request to a stage not in the current stage's allowed set shall be rejected with 422 unless the actor is Manager/Admin providing an override reason. | BR-21, BR-06 | Rep gets 422 on an invalid transition; Manager/Admin with `override_reason` succeeds and the override is audit-logged. |
+| FR-48 | The system shall expose an opportunity's stage history, derived from its audit log entries, without a separate history table. | BR-14 | `GET /opportunities/{id}/stage-history` returns entries ordered chronologically, matching the audit log's `UPDATE`/`opportunities` records for that entity. |
+
+### Lead Scoring Engine
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-49 | The system shall evaluate a lead's score by summing weights from all matched `scoring_criteria` rows of the active `scoring_rule`, on lead create/update and on new-activity-logged. | BR-02, BR-18 | Two leads with identical attribute/activity data receive identical scores (deterministic, per FR-35's reproducibility principle). |
+| FR-50 | Scoring criteria shall support attribute-based, behavior-based, recency-based, and negative-signal rule types via the existing `field_name`/`operator`/`comparison_value`/`weight` shape. | BR-02 | At least one criterion of each type is seed-configured and independently unit-tested. |
+| FR-51 | The system shall expose a score breakdown showing which criteria matched and their contribution, for transparency. | BR-02 (fairness, RISK-02) | `GET /leads/{id}/score-breakdown` lists each matched criterion and its weight; the sum equals the lead's stored `score`. |
+| FR-52 | A lead crossing into the Hot band shall trigger the auto-assignment engine using the least-loaded strategy (fewest open assigned leads among active Reps in-region) as the default. | BR-03 | Given a fixed roster and lead queue, the assigned Rep is reproducible and matches an independently computed least-loaded calculation. |
+
+### Activity Timeline
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-53 | The system shall provide a chronological timeline of activities for a single Lead and an aggregated timeline across an Account's Contacts/Opportunities/Activities. | FR-25 | `GET /leads/{id}/timeline` and `GET /accounts/{id}/timeline` return activities newest-first, paginated. |
+| FR-54 | Stage changes and lead conversions shall automatically create a system-logged Activity entry, distinct from user-logged activities. | BR-14, FR-36 | An `advance-stage` or `convert` call produces both an audit log row and a corresponding Activity row with `logged_by` null or a system marker. |
+
+### Audit Log (Hardening)
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-55 | Audit log entries shall additionally capture the actor's IP address and user agent where available from the request context. | BR-14 | New mutations populate `ip_address`/`user_agent`; historic Phase 2 rows remain valid with these columns null. |
+| FR-56 | Audit log immutability (BR-15) shall be enforced at the database level via a trigger rejecting UPDATE/DELETE, in addition to the existing no-route enforcement (FR-41). | BR-15 | A direct SQL UPDATE/DELETE against `audit_logs` (bypassing the API entirely) is rejected by Postgres itself. |
+| FR-57 | Admin shall be able to query the audit log filtered by entity type/id, actor, and date range; Manager's results are scoped to their team's entities. | RACI §1 | `GET /audit-log` and `GET /audit-log/entity/{type}/{id}` respect role scoping consistent with FR-44. |
+
+### Workflow Automation Engine
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-58 | The system shall store workflow rules as a named, toggleable event→condition→action definition, evaluated synchronously in-process (no background worker) when the named event occurs. | BR-18 (data-driven config), FR-33 | Disabling a rule (`PATCH /workflows/{id}/toggle`) causes it to be skipped on the next matching event without removing its configuration (mirrors FR-37). |
+| FR-59 | Supported trigger events are: `lead_created`, `lead_scored`, `stage_changed`, `opportunity_won`, `opportunity_lost`, `activity_logged`. | BR-18 | Each event type has at least one seed-configured rule exercised by a test. |
+| FR-60 | Supported actions are: `assign_owner`, `send_notification`, `update_field`, `create_task`, `trigger_webhook`; `trigger_webhook` and any email/SMS delivery remain explicitly stubbed (logged, not dispatched) per BRD §5.2/FRD §6. | BR-22 | A `send_notification` action creates a `notifications` row; a `trigger_webhook` action logs the payload without an outbound HTTP call. |
+| FR-61 | Each workflow rule execution shall be logged (rule id, triggering event, matched/not-matched, actions taken) for auditability, separate from the entity-level audit log. | BR-14 (auditability principle) | `GET /workflows/{id}/execution-log` returns a chronological record of evaluation attempts, including non-matches. |
+
+### Notifications (Module 6 Infrastructure)
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-62 | The system shall provide an in-app notification inbox per user, populated by the `send_notification` workflow action. | BR-22 | `GET /notifications` returns the authenticated user's own notifications only. |
+| FR-63 | Users shall be able to mark a single notification or all notifications read. | BR-22 | `PATCH /notifications/{id}/mark-read` and `POST /notifications/mark-all-read` update `is_read` and are idempotent. |
+
+### Analytics / Aggregation Endpoints
+
+| ID | Requirement | Traces to | Acceptance Criteria |
+|---|---|---|---|
+| FR-64 | The system shall expose pipeline-summary, rep-performance, lead-funnel, forecast, and kpis aggregation endpoints, each backed by a SQL view matching a `KPI_Catalog.md` entry. | FR-28–FR-32 | Each endpoint's returned figures match an independently-run equivalent SQL query against the same data (mirrors UAT-28's dashboard-vs-SQL check). |
+
+**Traceability note:** FR-46–FR-64 slot into the existing chain (`BR-xx → FR-xx → US-xx → UAT-xx`); corresponding user stories and UAT cases are added to `User_Stories.md` / `UAT_Test_Scripts.md` as part of Phase 3 delivery, not deferred.

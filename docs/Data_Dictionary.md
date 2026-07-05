@@ -205,3 +205,19 @@
 ## Addendum: Soft Delete Pattern (Phase 2 Decision, 2026-07-05)
 
 `users`, `leads`, `accounts`, `contacts`, `opportunities`, and `activities` each gain a `deleted_at TIMESTAMP NULL` column, decided during Phase 2 scaffolding (not in the original Phase 1 baseline). A DELETE request sets `deleted_at = now()` rather than removing the row; all default list/get queries filter `WHERE deleted_at IS NULL`. Rationale: hard-deleting an Account with existing Opportunities/Activities would force either a cascade (losing pipeline history) or a restrict (blocking legitimate deletes) — soft delete avoids both while the audit log (BR-14) still records the deletion event itself. This does not change any BR/FR numbering; it is an implementation detail of "DELETE" as already specified in FR-01–FR-27.
+
+---
+
+## Addendum: Phase 3 Schema Additions (2026-07-05)
+
+**`pipeline_stages`** gains `allowed_next_stage_ids JSONB NOT NULL DEFAULT '[]'` — array of stage UUIDs this stage may transition to without an override. Traces to BR-21, FR-46.
+
+**`audit_logs`** gains `ip_address VARCHAR(45) NULL` and `user_agent VARCHAR(500) NULL`, populated from the request context where available (historic Phase 2 rows remain valid with these null). Traces to FR-55. A Postgres trigger (`prevent_audit_log_mutation`) rejects any UPDATE/DELETE against this table, raising an exception — enforced at the database level in addition to the existing no-route enforcement (FR-41/FR-56).
+
+**New table `workflow_rules`** (hybrid relational + JSONB, per Phase 3 decision): `id UUID PK`, `name VARCHAR(100)`, `trigger_event VARCHAR(50)` (one of the FR-59 event names, real column so "which rules fire on X" is a plain WHERE query), `is_active BOOLEAN`, `conditions JSONB` (array of `{field, operator, value}`), `actions JSONB` (array of `{type, params}`), `created_at`/`updated_at`. Traces to BR-18, FR-58–FR-60.
+
+**New table `workflow_execution_log`**: `id UUID PK`, `workflow_rule_id FK`, `triggering_event VARCHAR(50)`, `entity_type VARCHAR(50)`, `entity_id UUID`, `matched BOOLEAN`, `actions_taken JSONB`, `created_at`. Separate from `audit_logs` since it records rule *evaluation* attempts (including non-matches), not entity state changes. Traces to FR-61.
+
+**New table `notifications`**: `id UUID PK`, `user_id FK`, `message VARCHAR(500)`, `link_entity_type VARCHAR(50) NULL`, `link_entity_id UUID NULL`, `is_read BOOLEAN DEFAULT false`, `created_at`. Traces to BR-22, FR-62–FR-63.
+
+**Updated total table count: 21** (17 from Phase 1/2 + `workflow_rules`, `workflow_execution_log`, `notifications`, and no new table for stage history since FR-48 derives it from `audit_logs`).

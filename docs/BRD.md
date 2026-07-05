@@ -130,6 +130,8 @@ Any request to add the above must be raised as a formal scope change and evaluat
 | BR-18 | Lead scoring thresholds (Hot/Warm/Cold) and auto-assignment rules must be configurable by Admin without requiring a code change (data-driven configuration, not hardcoded thresholds). |
 | BR-19 | Each of the 4 Power BI dashboards must refresh from live system data on a defined cadence documented in `KPI_Catalog.md`, not from manually exported/static files. |
 | BR-20 | Duplicate Account detection (matching on company name/domain) must warn the user at creation time, though the system may allow an explicit override with justification. |
+| BR-21 | Pipeline stage transitions must follow an Admin-configurable, ordered set of allowed next-stages per stage; a transition outside that set requires a Manager/Admin override, logged with a reason (extends BR-06 with the specific transition-graph mechanism, added at Phase 3 kickoff — see `docs/PHASE_REPORTS/phase_3.md`). |
+| BR-22 | Workflow automation rules may trigger an in-app notification to the affected record's owner as one of their actions; notification delivery beyond in-app (email/SMS) is explicitly out of scope and must be stubbed/logged, not silently no-op'd (added at Phase 3 kickoff). |
 
 ---
 

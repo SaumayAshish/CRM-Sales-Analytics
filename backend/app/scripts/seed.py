@@ -3,7 +3,10 @@ Deterministic seed data generator.
 
 Traces to: BRD.md SS6.1 (10,000+ synthetic, clearly-demo records), Phase 2
 plan agreement (lead-heavy funnel: 20 users, 100 accounts, 500 contacts,
-3,000 leads, 1,500 opportunities, remainder as activities to clear 10,000+).
+3,000 leads, 1,500 opportunities, remainder as activities to clear
+10,000+), Phase 3 kickoff decision (re-seed from scratch through the real
+scoring/assignment engines rather than a hand-faked formula, least-loaded
+as the default assignment strategy).
 
 Run via: python -m app.scripts.seed
 All demo users share the password "DemoPass123!" (documented here, not a
@@ -23,7 +26,9 @@ from app.models.lead import Lead
 from app.models.opportunity import Opportunity
 from app.models.reference import ActivityType, LeadSource, LossReason, PipelineStage, Role, Team
 from app.models.user import User
-from app.models.workflow import AssignmentRule, ScoringCriteria, ScoringRule
+from app.models.workflow import AssignmentRule, ScoringCriteria, ScoringRule, WorkflowRule
+from app.services.assignment_engine import assign_lead_to_rep
+from app.services.scoring_engine import evaluate_lead_score
 
 SEED = 42
 DEMO_PASSWORD = "DemoPass123!"
@@ -44,7 +49,7 @@ PIPELINE_STAGES = [
     ("Closed Lost", 6, 0.000),
 ]
 LOSS_REASONS = ["Budget constraints", "Chose competitor", "No decision made", "Timing not right", "Lost to internal build"]
-ACTIVITY_TYPES = ["Call", "Email", "Meeting", "Task"]
+ACTIVITY_TYPES = ["Call", "Email", "Meeting", "Task", "Note", "Status Change"]
 
 
 def utcnow_minus(days_max: int) -> datetime:
@@ -61,8 +66,18 @@ def seed_reference_data(db) -> dict:
     sources = [LeadSource(name=name) for name in LEAD_SOURCES]
     db.add_all(sources)
 
-    stages = [PipelineStage(name=n, sort_order=o, default_probability=p) for n, o, p in PIPELINE_STAGES]
-    db.add_all(stages)
+    stage_objs = {n: PipelineStage(name=n, sort_order=o, default_probability=p) for n, o, p in PIPELINE_STAGES}
+    db.add_all(stage_objs.values())
+    db.flush()
+
+    # FR-46/BR-21: data-driven transition graph -- the linear funnel plus a
+    # direct-to-Closed-Lost shortcut from every open stage (deals can die
+    # at any point), Admin-configurable without a code change.
+    stage_objs["Qualification"].allowed_next_stage_ids = [str(stage_objs["Needs Analysis"].id), str(stage_objs["Closed Lost"].id)]
+    stage_objs["Needs Analysis"].allowed_next_stage_ids = [str(stage_objs["Proposal"].id), str(stage_objs["Closed Lost"].id)]
+    stage_objs["Proposal"].allowed_next_stage_ids = [str(stage_objs["Negotiation"].id), str(stage_objs["Closed Lost"].id)]
+    stage_objs["Negotiation"].allowed_next_stage_ids = [str(stage_objs["Closed Won"].id), str(stage_objs["Closed Lost"].id)]
+    stages = list(stage_objs.values())
 
     reasons = [LossReason(name=name) for name in LOSS_REASONS]
     db.add_all(reasons)
@@ -75,24 +90,38 @@ def seed_reference_data(db) -> dict:
     db.flush()
     db.add_all(
         [
-            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="source", operator="equals", comparison_value="Referral", weight=15),
-            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="source", operator="equals", comparison_value="Trade Show", weight=10),
-            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="company_size", operator="greater_than", comparison_value="500", weight=20),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="source", operator="equals", comparison_value="Referral", weight=20),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="source", operator="equals", comparison_value="Trade Show", weight=12),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="company_size", operator="greater_than", comparison_value="500", weight=25),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="activity_recency_days", operator="less_than_or_equal", comparison_value="7", weight=15),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="activity_type_exists", operator="equals", comparison_value="Meeting", weight=20),
+            ScoringCriteria(scoring_rule_id=scoring_rule.id, field_name="no_response_days", operator="greater_than_or_equal", comparison_value="30", weight=-20),
         ]
     )
 
-    assignment_rule = AssignmentRule(name="Round Robin - All Regions", strategy="round_robin", is_active=True)
+    # Phase 3 kickoff decision: least-loaded is the default assignment strategy.
+    assignment_rule = AssignmentRule(name="Least Loaded - All Regions", strategy="least_loaded", is_active=True)
     db.add(assignment_rule)
+
+    db.add_all(
+        [
+            WorkflowRule(
+                name="Notify on Hot Lead", trigger_event="lead_scored", is_active=True,
+                conditions=[{"field": "score_band", "operator": "equals", "value": "Hot"}],
+                actions=[{"type": "send_notification", "params": {"message": "A lead just scored Hot and needs follow-up."}}],
+            ),
+            WorkflowRule(
+                name="Task on Won Deal", trigger_event="opportunity_won", is_active=True,
+                conditions=[],
+                actions=[{"type": "create_task", "params": {"notes": "Kick off onboarding for the newly won deal.", "due_in_days": 2}}],
+            ),
+        ]
+    )
 
     db.flush()
     return {
-        "roles": roles,
-        "teams": teams,
-        "sources": sources,
-        "stages": stages,
-        "reasons": reasons,
-        "activity_types": activity_types,
-        "scoring_rule": scoring_rule,
+        "roles": roles, "teams": teams, "sources": sources, "stages": stages,
+        "reasons": reasons, "activity_types": activity_types, "scoring_rule": scoring_rule,
     }
 
 
@@ -107,7 +136,7 @@ def seed_users(db, ref: dict) -> list[User]:
     )
     users.append(admin)
 
-    for i, team in enumerate(ref["teams"]):
+    for team in ref["teams"]:
         manager = User(
             email=f"manager.{team.region.lower()}@northwindsales.com", password_hash=password_hash,
             first_name=fake.first_name(), last_name=fake.last_name(),
@@ -167,57 +196,90 @@ def seed_accounts_and_contacts(db, ref: dict, users: list[User]) -> tuple[list[A
     return accounts, contacts
 
 
-def _score_lead(source_name: str) -> tuple[int, str]:
-    score = 0
-    if source_name == "Referral":
-        score += 15
-    if source_name == "Trade Show":
-        score += 10
-    if random.random() < 0.35:
-        score += 20  # simulates the company_size > 500 criterion firing
-    score += random.randint(0, 45)
-
-    if score >= 70:
-        band = "Hot"
-    elif score >= 40:
-        band = "Warm"
-    else:
-        band = "Cold"
-    return score, band
-
-
-def seed_leads(db, ref: dict, users: list[User]) -> list[Lead]:
-    reps = [u for u in users if u.role_id == ref["roles"]["Rep"].id]
+def seed_raw_leads(db, ref: dict) -> list[Lead]:
+    """3,000 leads with no score/assignment yet -- the real engine (called
+    in score_and_assign_leads) computes those, not a hand-faked formula."""
     leads: list[Lead] = []
     for _ in range(3000):
         source = random.choice(ref["sources"])
-        score, band = _score_lead(source.name)
-
-        # Lead-heavy funnel: most Hot/Warm leads get assigned; most Cold leads sit unassigned.
-        assigned_to = None
-        if band == "Hot" or (band == "Warm" and random.random() < 0.7):
-            assigned_to = random.choice(reps).id
-        elif band == "Cold" and random.random() < 0.15:
-            assigned_to = random.choice(reps).id
-
-        # ~20% overall conversion rate, weighted toward Hot leads (realistic funnel shape).
-        is_converted = False
-        if assigned_to is not None:
-            conv_chance = {"Hot": 0.45, "Warm": 0.20, "Cold": 0.05}[band]
-            is_converted = random.random() < conv_chance
+        custom_fields = None
+        if random.random() < 0.35:
+            custom_fields = {"company_size": random.choice([50, 150, 400, 750, 1200, 3000])}
 
         leads.append(
             Lead(
                 first_name=fake.first_name(), last_name=fake.last_name(), company=fake.company(),
                 email=fake.email(), phone=fake.phone_number()[:30], source_id=source.id,
-                score=score, score_band=band, assigned_to=assigned_to,
-                scoring_rule_id=ref["scoring_rule"].id, is_converted=is_converted,
-                created_at=utcnow_minus(180),
+                custom_fields=custom_fields, created_at=utcnow_minus(180),
             )
         )
     db.add_all(leads)
     db.flush()
     return leads
+
+
+def seed_lead_signal_activities(db, ref: dict, leads: list[Lead], users: list[User]) -> None:
+    """Attach activities to a subset of leads *before* scoring, so the
+    recency/behavior/negative-signal criteria have real data to evaluate
+    against (not just attribute fields) -- otherwise those three of the
+    four rule-type families would never fire in seed data."""
+    meeting_type = next(t for t in ref["activity_types"] if t.name == "Meeting")
+    call_type = next(t for t in ref["activity_types"] if t.name == "Call")
+    loggers = users
+
+    for lead in leads:
+        roll = random.random()
+        if roll < 0.15:
+            # Recent engagement + a demo meeting: pushes toward Hot.
+            db.add(
+                Activity(
+                    type_id=meeting_type.id, logged_by=random.choice(loggers).id, lead_id=lead.id,
+                    notes="Demo meeting held.", created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 6)),
+                )
+            )
+        elif roll < 0.30:
+            # Recent call only (smaller recency signal, no behavior bonus).
+            db.add(
+                Activity(
+                    type_id=call_type.id, logged_by=random.choice(loggers).id, lead_id=lead.id,
+                    notes="Discovery call.", created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(0, 6)),
+                )
+            )
+        elif roll < 0.45:
+            # Gone quiet: last activity was over a month ago -- negative signal.
+            db.add(
+                Activity(
+                    type_id=call_type.id, logged_by=random.choice(loggers).id, lead_id=lead.id,
+                    notes="Initial outreach, no follow-up since.",
+                    created_at=datetime.now(timezone.utc) - timedelta(days=random.randint(31, 90)),
+                )
+            )
+        # else: no activity yet -- no_response_days falls back to lead.created_at.
+    db.flush()
+
+
+def score_and_assign_leads(db, leads: list[Lead]) -> None:
+    """FR-49/FR-52 via the real engines, not a stand-in formula."""
+    for lead in leads:
+        score, band, _matched, rule_id = evaluate_lead_score(db, lead)
+        lead.score = score
+        lead.score_band = band
+        lead.scoring_rule_id = rule_id
+
+        if band == "Hot":
+            rep = assign_lead_to_rep(db)
+            if rep is not None:
+                lead.assigned_to = rep.id
+        elif band == "Warm" and random.random() < 0.4:
+            # Simulates a Manager manually triaging some Warm leads from the unassigned queue (BR-13).
+            rep = assign_lead_to_rep(db)
+            if rep is not None:
+                lead.assigned_to = rep.id
+
+        if lead.assigned_to is not None:
+            conv_chance = {"Hot": 0.45, "Warm": 0.20, "Cold": 0.05}[band]
+            lead.is_converted = random.random() < conv_chance
+    db.flush()
 
 
 def seed_opportunities(db, ref: dict, accounts: list[Account], users: list[User]) -> list[Opportunity]:
@@ -252,20 +314,23 @@ def seed_opportunities(db, ref: dict, accounts: list[Account], users: list[User]
     return opportunities
 
 
-def seed_activities(
+def seed_bulk_activities(
     db, ref: dict, users: list[User], leads: list[Lead], accounts: list[Account],
-    contacts: list[Contact], opportunities: list[Opportunity], count: int = 5000,
-) -> None:
+    contacts: list[Contact], opportunities: list[Opportunity], count: int,
+) -> int:
+    """Additional activities beyond the lead-signal ones, spread across all
+    entity types, to reach the 10,000+ total record target."""
     activities: list[Activity] = []
+    written = 0
     for _ in range(count):
         activity_type = random.choice(ref["activity_types"])
         logger = random.choice(users)
         target_roll = random.random()
 
         lead_id = account_id = contact_id = opportunity_id = None
-        if target_roll < 0.35 and leads:
+        if target_roll < 0.25 and leads:
             lead_id = random.choice(leads).id
-        elif target_roll < 0.60 and accounts:
+        elif target_roll < 0.55 and accounts:
             account_id = random.choice(accounts).id
         elif target_roll < 0.80 and contacts:
             contact_id = random.choice(contacts).id
@@ -277,7 +342,6 @@ def seed_activities(
         is_task = activity_type.name == "Task"
         due_at = None
         if is_task:
-            # Some tasks due in the future, some overdue (FR-26 overdue-flag scenario).
             due_at = datetime.now(timezone.utc) + timedelta(days=random.randint(-20, 20))
 
         activities.append(
@@ -288,6 +352,7 @@ def seed_activities(
                 due_at=due_at, created_at=utcnow_minus(120),
             )
         )
+        written += 1
         if len(activities) >= 1000:
             db.add_all(activities)
             db.flush()
@@ -295,6 +360,7 @@ def seed_activities(
     if activities:
         db.add_all(activities)
         db.flush()
+    return written
 
 
 def main() -> None:
@@ -309,18 +375,24 @@ def main() -> None:
         ref = seed_reference_data(db)
         users = seed_users(db, ref)
         accounts, contacts = seed_accounts_and_contacts(db, ref, users)
-        leads = seed_leads(db, ref, users)
+        leads = seed_raw_leads(db, ref)
+        seed_lead_signal_activities(db, ref, leads, users)
+        score_and_assign_leads(db, leads)
         opportunities = seed_opportunities(db, ref, accounts, users)
-        seed_activities(db, ref, users, leads, accounts, contacts, opportunities, count=5000)
+        seed_bulk_activities(db, ref, users, leads, accounts, contacts, opportunities, count=4500)
 
         db.commit()
 
-        total = (
-            len(users) + len(accounts) + len(contacts) + len(leads) + len(opportunities) + 5000
+        activity_count = db.query(Activity).count()
+        total = len(users) + len(accounts) + len(contacts) + len(leads) + len(opportunities) + activity_count
+        band_counts = {b: sum(1 for lead in leads if lead.score_band == b) for b in ("Hot", "Warm", "Cold")}
+
+        print(
+            f"Seed complete: {len(users)} users, {len(accounts)} accounts, {len(contacts)} contacts, "
+            f"{len(leads)} leads, {len(opportunities)} opportunities, "
+            f"{activity_count} activities. Total business records: {total}."
         )
-        print(f"Seed complete: {len(users)} users, {len(accounts)} accounts, {len(contacts)} contacts, "
-              f"{len(leads)} leads, {len(opportunities)} opportunities, 5000 activities. "
-              f"Total business records: {total}.")
+        print(f"Lead score bands: {band_counts}")
         print(f"All demo users share password: {DEMO_PASSWORD}")
     except Exception:
         db.rollback()

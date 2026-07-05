@@ -5,7 +5,8 @@ Traces to: Data_Dictionary.md SS12; BR-09; FR-23, FR-24, FR-26, FR-27;
 soft-delete addendum. The "at least one related entity" rule (BR-09) is
 enforced via a CHECK constraint added in the Alembic migration, since
 SQLAlchemy's column-level API can't express a multi-column CHECK cleanly
-in the ORM model itself.
+in the ORM model itself. logged_by is nullable (migration 0003) to allow
+system-generated timeline entries on stage-change/conversion (FR-54).
 """
 import uuid
 from datetime import datetime
@@ -23,8 +24,8 @@ class Activity(Base, UUIDPKMixin, TimestampMixin, SoftDeleteMixin):
     type_id: Mapped[uuid.UUID] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("activity_types.id"), nullable=False, index=True
     )
-    logged_by: Mapped[uuid.UUID] = mapped_column(
-        PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    logged_by: Mapped[uuid.UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True
     )
     lead_id: Mapped[uuid.UUID | None] = mapped_column(
         PG_UUID(as_uuid=True), ForeignKey("leads.id"), nullable=True, index=True

@@ -6,6 +6,7 @@ Traces to: Data_Dictionary.md SS1, SS2, SS4, SS8, SS9, SS11; BR-01, BR-06, BR-07
 """
 
 from sqlalchemy import Numeric, String, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, UUIDPKMixin
@@ -32,11 +33,15 @@ class LeadSource(Base, UUIDPKMixin):
 
 
 class PipelineStage(Base, UUIDPKMixin):
+    """allowed_next_stage_ids traces to BR-21/FR-46: admin-configurable
+    transition graph, not a hardcoded state machine."""
+
     __tablename__ = "pipeline_stages"
 
     name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(unique=True, nullable=False)
     default_probability: Mapped[float] = mapped_column(Numeric(4, 3), nullable=False)
+    allowed_next_stage_ids: Mapped[list] = mapped_column(JSONB, default=list, nullable=False)
 
 
 class LossReason(Base, UUIDPKMixin):

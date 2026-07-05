@@ -1,6 +1,6 @@
 # CRM & Sales Analytics Platform
 
-> **Status:** Phase 1 (BA Foundation) complete. Code has not been written yet — see [Delivery Phases](#delivery-phases) below.
+> **Status:** Phases 1–4 complete (BA Foundation, Backend Core, Backend Advanced, Frontend). Phase 5 (Analytics/Power BI) and Phase 6 (Ship & Polish) remain.
 
 <!-- HOOK — to be written in Phase 6. One or two sentences: the business problem, who this is for, and the single most impressive fact (e.g., "40+ documented REST APIs, 4 Power BI dashboards, 70%+ test coverage, built solo from BRD to deployment"). -->
 
@@ -44,18 +44,39 @@ Full justification for each choice: [`docs/Architecture.md`](docs/Architecture.m
 
 ## Screenshots
 
-TODO (Phase 6): Kanban pipeline, Account 360, and at least one Power BI dashboard screenshot.
+The Kanban pipeline, Leads list, Account 360, and RBAC gating (Admin/Manager/Rep/Viewer) were all
+visually verified live in-browser during Phase 4 against the real backend and seed data. Committed
+screenshot image assets for this section are still TODO (Phase 6 polish pass) — see
+`docs/PHASE_REPORTS/phase_4.md` for what was verified and how.
 
 ## Getting Started
 
-TODO (Phase 6): `docker-compose up` instructions once Phase 6 (Ship & Polish) is complete.
+**Backend** (see `backend/README` equivalents in `docs/PHASE_REPORTS/phase_2.md` for full detail):
 
 ```bash
-# Placeholder — not yet functional
-git clone <repo-url>
-cd crm-sales-analytics
-docker-compose up
+cd backend
+python -m venv .venv && .venv/Scripts/activate  # or source .venv/bin/activate on macOS/Linux
+pip install -r requirements-dev.txt
+cp .env.example .env
+docker compose up -d db   # from the repo root, starts Postgres on port 5433
+alembic upgrade head
+python -m app.scripts.seed
+uvicorn app.main:app --reload --port 8000
 ```
+
+**Frontend:**
+
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev   # http://localhost:5173
+```
+
+Log in with any seeded demo user (e.g. `admin@northwindsales.com`) and the shared password
+`DemoPass123!` (see `backend/app/scripts/seed.py`).
+
+A single `docker-compose up` for the full stack (including the frontend container) is Phase 6 scope.
 
 ## Documentation
 

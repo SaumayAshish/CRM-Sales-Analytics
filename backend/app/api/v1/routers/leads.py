@@ -3,10 +3,8 @@ Lead endpoints, including conversion and assignment.
 
 Traces to: FR-01 (create), FR-05 (manual reassignment restricted to
 Admin/Manager), FR-06 (atomic conversion), FR-07 (block re-conversion),
-FR-08 (unassigned queue). Scoring (FR-02/03) and auto-assignment (FR-04)
-are Phase 3 workflow-engine scope (CLAUDE.md Backend Advanced phase) --
-Phase 2 persists score/score_band/assigned_to as plain columns without
-the rule-evaluation engine behind them yet.
+FR-08 (unassigned queue), FR-49 (scoring runs on create/update), FR-52
+(Hot leads auto-assign via the least-loaded engine).
 """
 import uuid
 from datetime import datetime, timezone
@@ -17,11 +15,16 @@ from sqlalchemy.orm import Session
 from app.api.deps import ROLE_ADMIN, ROLE_MANAGER, ROLE_REP, CurrentUser, get_current_user, require_role
 from app.db.session import get_db
 from app.models.account import Account, Contact
+from app.models.activity import Activity
 from app.models.lead import Lead
 from app.models.opportunity import Opportunity
 from app.models.reference import PipelineStage
+from app.schemas.activity import ActivityRead
 from app.schemas.lead import LeadAssignRequest, LeadConvertResponse, LeadCreate, LeadRead, LeadUpdate
+from app.services.activity_log import log_system_activity
 from app.services.audit import write_audit_log
+from app.services.lead_workflow import rescore_and_maybe_assign
+from app.services.workflow_engine import dispatch_event
 
 router = APIRouter()
 
@@ -32,11 +35,17 @@ def create_lead(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_role([ROLE_ADMIN, ROLE_MANAGER, ROLE_REP])),
 ) -> Lead:
-    """FR-01: required fields enforced by LeadCreate; score/band default until Phase 3 scoring runs."""
+    """FR-01: required fields enforced by LeadCreate. FR-49: scoring engine
+    runs immediately, and FR-52 auto-assigns if the lead lands Hot."""
     lead = Lead(**payload.model_dump())
     db.add(lead)
     db.flush()
     write_audit_log(db, actor_id=current_user.id, action="CREATE", entity_type="leads", entity_id=lead.id)
+    dispatch_event(
+        db, event="lead_created", entity_type="leads", entity_id=lead.id,
+        context={"source_id": str(lead.source_id), "owner_id": lead.assigned_to},
+    )
+    rescore_and_maybe_assign(db, lead)
     db.commit()
     db.refresh(lead)
     return lead
@@ -99,6 +108,7 @@ def update_lead(
         setattr(lead, field, value)
 
     write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="leads", entity_id=lead.id)
+    rescore_and_maybe_assign(db, lead)
     db.commit()
     db.refresh(lead)
     return lead
@@ -188,6 +198,32 @@ def convert_lead(
     write_audit_log(db, actor_id=current_user.id, action="CREATE", entity_type="accounts", entity_id=account.id)
     write_audit_log(db, actor_id=current_user.id, action="CREATE", entity_type="contacts", entity_id=contact.id)
     write_audit_log(db, actor_id=current_user.id, action="CREATE", entity_type="opportunities", entity_id=opportunity.id)
+    log_system_activity(
+        db, lead_id=lead.id, account_id=account.id, opportunity_id=opportunity.id,
+        notes=f"Lead converted to Account '{account.name}' and Opportunity '{opportunity.name}'.",
+    )
 
     db.commit()
     return LeadConvertResponse(account_id=account.id, contact_id=contact.id, opportunity_id=opportunity.id)
+
+
+@router.get("/{lead_id}/timeline", response_model=list[ActivityRead])
+def get_lead_timeline(
+    lead_id: uuid.UUID, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+) -> list[Activity]:
+    """FR-53: chronological activity feed for a single lead."""
+    lead = db.query(Lead).filter(Lead.id == lead_id, Lead.deleted_at.is_(None)).first()
+    if lead is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lead not found")
+    if current_user.role == ROLE_REP and lead.assigned_to != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your lead")
+
+    return (
+        db.query(Activity)
+        .filter(Activity.lead_id == lead_id, Activity.deleted_at.is_(None))
+        .order_by(Activity.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )

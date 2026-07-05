@@ -9,13 +9,16 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.api.deps import ROLE_ADMIN, ROLE_MANAGER, ROLE_REP, CurrentUser, get_current_user, require_role
 from app.db.session import get_db
 from app.models.account import Account, Contact
+from app.models.activity import Activity
 from app.models.opportunity import Opportunity
 from app.schemas.account import AccountCreate, AccountRead, AccountUpdate, ContactRead
+from app.schemas.activity import ActivityRead
 from app.schemas.opportunity import OpportunityRead
 from app.services.audit import write_audit_log
 
@@ -159,3 +162,35 @@ def list_account_opportunities(
     return [
         {**o.__dict__, "weighted_value": float(o.amount) * float(o.probability)} for o in opportunities
     ]
+
+
+@router.get("/{account_id}/timeline", response_model=list[ActivityRead])
+def get_account_timeline(
+    account_id: uuid.UUID, db: Session = Depends(get_db), current_user: CurrentUser = Depends(get_current_user),
+    page: int = Query(1, ge=1), page_size: int = Query(50, ge=1, le=200),
+) -> list[Activity]:
+    """FR-53: aggregated timeline across the Account itself, its Contacts,
+    and its Opportunities -- not just activities logged directly against
+    the Account row."""
+    account = db.query(Account).filter(Account.id == account_id, Account.deleted_at.is_(None)).first()
+    if account is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+    if current_user.role == ROLE_REP and account.owner_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your account")
+
+    contact_ids = [
+        c.id for c in db.query(Contact.id).filter(Contact.account_id == account_id, Contact.deleted_at.is_(None)).all()
+    ]
+    opportunity_ids = [
+        o.id for o in db.query(Opportunity.id)
+        .filter(Opportunity.account_id == account_id, Opportunity.deleted_at.is_(None)).all()
+    ]
+
+    match_conditions = [Activity.account_id == account_id]
+    if contact_ids:
+        match_conditions.append(Activity.contact_id.in_(contact_ids))
+    if opportunity_ids:
+        match_conditions.append(Activity.opportunity_id.in_(opportunity_ids))
+
+    query = db.query(Activity).filter(Activity.deleted_at.is_(None), or_(*match_conditions))
+    return query.order_by(Activity.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()

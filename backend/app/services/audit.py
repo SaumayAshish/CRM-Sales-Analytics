@@ -4,13 +4,14 @@ Cross-cutting audit log writer.
 Traces to: BR-14 (every create/update/delete on core entities produces an
 immutable audit entry), BR-15 (no route ever exposes update/delete on
 audit_logs), FR-40, FR-41, FR-36 (system/automated actions record a null
-actor_id, distinguishing them from human actions -- used starting Phase 3's
-workflow engine, not exercised by Phase 2's plain CRUD).
+actor_id, distinguishing them from human actions), FR-55 (ip_address/
+user_agent captured from request context where available).
 """
 import uuid
 
 from sqlalchemy.orm import Session
 
+from app.core.request_context import get_request_ip, get_request_user_agent
 from app.models.audit import AuditLog
 
 
@@ -31,6 +32,8 @@ def write_audit_log(
         entity_id=entity_id,
         before_state=before_state,
         after_state=after_state,
+        ip_address=get_request_ip(),
+        user_agent=get_request_user_agent(),
     )
     db.add(entry)
     return entry

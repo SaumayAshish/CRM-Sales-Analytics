@@ -19,6 +19,8 @@ from app.models.lead import Lead
 from app.models.opportunity import Opportunity
 from app.schemas.activity import ActivityCreate, ActivityRead, ActivityUpdate
 from app.services.audit import write_audit_log
+from app.services.lead_workflow import rescore_and_maybe_assign
+from app.services.workflow_engine import dispatch_event
 
 router = APIRouter()
 
@@ -54,6 +56,17 @@ def create_activity(
     db.add(activity)
     db.flush()
     write_audit_log(db, actor_id=current_user.id, action="CREATE", entity_type="activities", entity_id=activity.id)
+    dispatch_event(
+        db, event="activity_logged", entity_type="activities", entity_id=activity.id,
+        context={"lead_id": str(activity.lead_id) if activity.lead_id else None},
+    )
+
+    if activity.lead_id is not None:
+        # FR-49: new-activity-logged is a scoring trigger (e.g. recency/behavior criteria).
+        lead = db.query(Lead).filter(Lead.id == activity.lead_id).first()
+        if lead is not None:
+            rescore_and_maybe_assign(db, lead)
+
     db.commit()
     db.refresh(activity)
     return activity

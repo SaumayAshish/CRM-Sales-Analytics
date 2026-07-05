@@ -12,15 +12,22 @@ from slowapi.errors import RateLimitExceeded
 from app.api.v1.routers import (
     accounts,
     activities,
+    analytics,
+    audit_log,
     auth,
     contacts,
+    lead_scoring,
     leads,
     lookups,
+    notifications,
     opportunities,
+    pipeline,
     users,
+    workflows,
 )
 from app.core.limiter import limiter
 from app.core.logging import configure_logging
+from app.core.request_context import RequestContextMiddleware
 
 configure_logging()
 
@@ -32,6 +39,7 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(RequestContextMiddleware)
 
 
 @app.exception_handler(Exception)
@@ -55,3 +63,9 @@ app.include_router(leads.router, prefix="/api/v1/leads", tags=["leads"])
 app.include_router(opportunities.router, prefix="/api/v1/opportunities", tags=["opportunities"])
 app.include_router(activities.router, prefix="/api/v1/activities", tags=["activities"])
 app.include_router(lookups.router, prefix="/api/v1/lookups", tags=["lookups"])
+app.include_router(pipeline.router, prefix="/api/v1/pipeline", tags=["pipeline"])
+app.include_router(lead_scoring.router, prefix="/api/v1", tags=["lead-scoring"])
+app.include_router(audit_log.router, prefix="/api/v1/audit-log", tags=["audit-log"])
+app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
+app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
+app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])

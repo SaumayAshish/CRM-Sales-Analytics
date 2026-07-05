@@ -39,7 +39,7 @@ class ActivityRead(BaseModel):
 
     id: uuid.UUID
     type_id: uuid.UUID
-    logged_by: uuid.UUID
+    logged_by: uuid.UUID | None
     lead_id: uuid.UUID | None
     account_id: uuid.UUID | None
     contact_id: uuid.UUID | None

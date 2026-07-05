@@ -14,14 +14,17 @@ os.environ.setdefault(
 )
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-not-for-production")
 
+from pathlib import Path
+
 import pytest
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.limiter import limiter
 from app.core.security import hash_password
-from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
 from app.models.reference import ActivityType, LeadSource, LossReason, PipelineStage, Role, Team
@@ -31,13 +34,28 @@ TEST_DATABASE_URL = os.environ["DATABASE_URL"]
 engine = create_engine(TEST_DATABASE_URL)
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _alembic_config() -> Config:
+    """Runs real Alembic migrations against the test DB (not
+    Base.metadata.create_all) so DB-level objects that live only in
+    migrations -- the audit_logs immutability trigger (FR-56), the
+    analytics views (FR-64) -- actually exist under test, matching what
+    CI and production run."""
+    cfg = Config(str(BACKEND_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
+    cfg.set_main_option("sqlalchemy.url", TEST_DATABASE_URL)
+    return cfg
+
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
+    cfg = _alembic_config()
+    command.downgrade(cfg, "base")
+    command.upgrade(cfg, "head")
     yield
-    Base.metadata.drop_all(bind=engine)
+    command.downgrade(cfg, "base")
 
 
 @pytest.fixture()
@@ -75,13 +93,20 @@ def reference_data(db):
     db.add(team)
     source = LeadSource(name="Web Form")
     db.add(source)
-    stages = [
-        PipelineStage(name="Qualification", sort_order=1, default_probability=0.1),
-        PipelineStage(name="Needs Analysis", sort_order=2, default_probability=0.3),
-        PipelineStage(name="Closed Won", sort_order=5, default_probability=1.0),
-        PipelineStage(name="Closed Lost", sort_order=6, default_probability=0.0),
-    ]
+    qualification = PipelineStage(name="Qualification", sort_order=1, default_probability=0.1)
+    needs_analysis = PipelineStage(name="Needs Analysis", sort_order=2, default_probability=0.3)
+    closed_won = PipelineStage(name="Closed Won", sort_order=5, default_probability=1.0)
+    closed_lost = PipelineStage(name="Closed Lost", sort_order=6, default_probability=0.0)
+    stages = [qualification, needs_analysis, closed_won, closed_lost]
     db.add_all(stages)
+    db.flush()
+    # FR-46/BR-21: every stage in the funnel can go directly to either
+    # closed state or advance to the next stage, so existing Rep-level
+    # test scenarios (advance/close without a Manager override) keep working.
+    qualification.allowed_next_stage_ids = [str(needs_analysis.id), str(closed_won.id), str(closed_lost.id)]
+    needs_analysis.allowed_next_stage_ids = [str(closed_won.id), str(closed_lost.id)]
+    db.flush()
+
     loss_reason = LossReason(name="Budget constraints")
     db.add(loss_reason)
     activity_type = ActivityType(name="Call")

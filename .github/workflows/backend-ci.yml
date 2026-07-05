@@ -42,13 +42,11 @@ jobs:
       - name: Lint (ruff)
         run: ruff check .
 
-      - name: Run migrations
-        env:
-          DATABASE_URL: postgresql+psycopg2://crm_user:crm_password@localhost:5432/crm_sales_analytics_test
-          JWT_SECRET_KEY: ci-only-secret-key
-        run: alembic upgrade head
-
       - name: Run tests with coverage
+        # Migrations run inside tests/conftest.py's session-scoped fixture
+        # (alembic downgrade base -> upgrade head against DATABASE_URL),
+        # so DB-level objects (audit trigger, analytics views) are always
+        # present under test -- no separate migration step needed here.
         env:
           DATABASE_URL: postgresql+psycopg2://crm_user:crm_password@localhost:5432/crm_sales_analytics_test
           JWT_SECRET_KEY: ci-only-secret-key

@@ -76,10 +76,26 @@
 | UAT-33 | Logged in as Viewer | 1. Attempt to POST a new lead directly via API. | 403 returned. | High | FR-39 |
 | UAT-34 | Any qualifying mutation occurs (e.g., opportunity stage change) | 1. Perform the mutation. 2. Query audit_logs for that entity_id. | Exactly one new audit log row exists with correct actor/action/before/after state. | High | FR-40 |
 
+## Module 8 — Backend Advanced (Phase 3, added 2026-07-05)
+
+| Test ID | Precondition | Steps | Expected Result | Priority | Traces to |
+|---|---|---|---|---|---|
+| UAT-35 | Opportunity in Qualification, allowed next-stages = [Needs Analysis, Closed Lost] | 1. Rep attempts `advance-stage` to Negotiation. | 422 returned; stage unchanged. | High | FR-46, FR-47 |
+| UAT-36 | Same as UAT-35 | 1. Manager attempts the same transition with an `override_reason`. | Stage updates; audit entry records the override reason. | High | FR-47 |
+| UAT-37 | Opportunity with 2+ recorded stage changes | 1. Call `GET /opportunities/{id}/stage-history`. | All transitions returned chronologically, sourced from audit_logs. | Medium | FR-48 |
+| UAT-38 | Lead matches two active scoring criteria (weights 20 + 25) | 1. Create the lead. | `score = 45`; score-breakdown endpoint lists both matched criteria summing to 45. | High | FR-49, FR-51 |
+| UAT-39 | Lead's score crosses into Hot on creation | 1. Create the lead with no prior assignment. | `assigned_to` is populated with the least-loaded active Rep in the same transaction. | High | FR-52 |
+| UAT-40 | Active workflow rule: event=`lead_scored`, condition=`score_band equals Hot`, action=`send_notification` | 1. Create a lead that scores Hot. | A notification row is created for the resolved owner; execution log shows `matched=true`. | High | FR-58, FR-59, FR-60 |
+| UAT-41 | Same rule, a lead scores Warm instead | 1. Create a Warm-scoring lead. | No notification created; execution log shows `matched=false`. | Medium | FR-61 |
+| UAT-42 | Rule toggled inactive via `PATCH /workflows/{id}/toggle` | 1. Trigger the same event again. | Rule is skipped entirely (no execution log entry), configuration retained. | Medium | FR-58 |
+| UAT-43 | — | 1. Issue a raw SQL `UPDATE audit_logs ...` directly against the database, bypassing the API. | Rejected by the Postgres trigger (FR-56), independent of any application-layer check. | High | FR-56 |
+| UAT-44 | Seeded pipeline data across all 6 stages | 1. Call `GET /analytics/pipeline-summary`. 2. Independently run the equivalent SQL query. | Figures match exactly, per stage. | High | FR-64 |
+
 ---
 
 ## Coverage Summary
 
-- **34 cases** (exceeds the 30+ target).
-- Covers all 7 modules, with at least one High-priority happy path and one High-priority negative/RBAC case per module.
+- **44 cases** (exceeds the 30+ target).
+- Covers all 7 core modules plus Phase 3's Backend Advanced capabilities, with at least one High-priority happy path and one High-priority negative/RBAC case per module.
 - Role-based access explicitly tested in UAT-05, UAT-09/10, UAT-16/17, UAT-27, UAT-29/30, UAT-33.
+- DB-level (not just app-level) guarantees explicitly tested in UAT-43.

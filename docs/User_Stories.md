@@ -241,8 +241,62 @@ As an IT/Security Lead, I want the audit log to be immutable even to Admins thro
 
 ---
 
+## Epic 8: Backend Advanced (Phase 3)
+
+Added 2026-07-05 to cover FR-46–FR-64, per FRD.md §10's traceability note.
+
+### Feature 8.1 — Pipeline Stage Engine
+
+**US-43** | Traces: FR-46, FR-47 | Points: 5 | Priority: Must
+As an Admin, I want to configure which stages a deal can move to next, so that the funnel reflects our actual sales process without a code change.
+- Given Qualification's allowed next-stages are Needs Analysis and Closed Lost, When a Rep tries to advance directly to Negotiation, Then the API returns 422 unless a Manager/Admin supplies an override reason.
+
+**US-44** | Traces: FR-48 | Points: 2 | Priority: Should
+As a Manager, I want to see an opportunity's full stage history, so that I can understand how a deal progressed without asking the rep.
+- Given an opportunity has changed stage three times, When I view its stage history, Then all three transitions display chronologically with actor and timestamp.
+
+### Feature 8.2 — Lead Scoring Engine
+
+**US-45** | Traces: FR-49, FR-52 | Points: 5 | Priority: Must
+As a system, I want to re-run scoring whenever a lead is created, updated, or gets a new activity, so that the score always reflects current information.
+- Given a lead crosses into Hot after a new activity is logged, When scoring completes, Then the lead is auto-assigned to the least-loaded active Rep.
+
+**US-46** | Traces: FR-51 | Points: 3 | Priority: Should
+As a Rep, I want to see exactly which criteria contributed to a lead's score, so that I trust the scoring model isn't a black box.
+- Given a lead scored 45 from two matched criteria, When I view its score breakdown, Then both criteria and their weights are listed and sum to 45.
+
+### Feature 8.3 — Workflow Automation & Notifications
+
+**US-47** | Traces: FR-58, FR-59 | Points: 5 | Priority: Must
+As an Admin, I want to define a rule that fires on a named event only when conditions match, so that automation stays predictable and auditable.
+- Given a rule targets `lead_scored` with condition `score_band equals Hot`, When a Warm lead is scored, Then the rule evaluates but does not match, and no action executes.
+
+**US-48** | Traces: FR-60, BR-22 | Points: 3 | Priority: Should
+As a Manager, I want to be notified in-app when a lead goes Hot, so that I don't have to poll dashboards to catch it.
+- Given a matching `send_notification` action runs, When I check my notifications, Then the new notification appears unread.
+
+**US-49** | Traces: FR-61 | Points: 2 | Priority: Should
+As an Admin, I want to see why a rule did or didn't fire, so that I can debug unexpected automation behavior.
+- Given a rule's conditions didn't match on the last three events, When I view its execution log, Then all three appear with `matched=false`.
+
+### Feature 8.4 — Audit & Analytics
+
+**US-50** | Traces: FR-56 | Points: 2 | Priority: Must
+As an IT/Security Lead, I want the database itself to reject any attempt to alter audit history, so that the guarantee holds even if the application layer is bypassed.
+- Given a direct SQL UPDATE against `audit_logs`, When executed, Then Postgres rejects it via the immutability trigger, independent of the API.
+
+**US-51** | Traces: FR-57 | Points: 3 | Priority: Should
+As a Manager, I want to query the audit log scoped to my own team, so that I can review my team's activity without seeing other regions'.
+- Given entries exist from actors on two different teams, When a Manager queries the audit log, Then only their own team's entries return.
+
+**US-52** | Traces: FR-64 | Points: 3 | Priority: Must
+As a VP of Sales, I want pipeline, rep-performance, funnel, and forecast figures available via API, so that Power BI dashboards (Phase 5) can consume live data.
+- Given seeded pipeline data, When I call `/analytics/pipeline-summary`, Then the returned totals match an independently-run SQL query against the same tables.
+
+---
+
 ## Summary Statistics
 
-- **Total stories:** 42 (exceeds the 40+ target)
-- **By priority:** Must = 27, Should = 11, Could = 4, Won't = 0 (all in-scope stories are at least Could — no story is currently deprioritized to Won't; any future Won't-priority ask should be logged against `Gap_Analysis.md` instead)
-- **Total story points:** 149 (indicative sizing only — not a sprint-commitment forecast)
+- **Total stories:** 52 (exceeds the 40+ target)
+- **By priority:** Must = 33, Should = 15, Could = 4, Won't = 0 (all in-scope stories are at least Could — no story is currently deprioritized to Won't; any future Won't-priority ask should be logged against `Gap_Analysis.md` instead)
+- **Total story points:** 178 (indicative sizing only — not a sprint-commitment forecast)

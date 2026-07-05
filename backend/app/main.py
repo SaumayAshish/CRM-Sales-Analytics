@@ -5,6 +5,7 @@ Traces to: Architecture.md SS3 (OpenAPI auto-docs at /docs and /redoc),
 FRD.md SS5.2 (REST/JSON API surface, consistent error responses).
 """
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -25,6 +26,7 @@ from app.api.v1.routers import (
     users,
     workflows,
 )
+from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import configure_logging
 from app.core.request_context import RequestContextMiddleware
@@ -40,6 +42,13 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestContextMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.exception_handler(Exception)

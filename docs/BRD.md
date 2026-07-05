@@ -162,7 +162,7 @@ The full KPI catalog with formulas and SQL definitions lives in `KPI_Catalog.md`
 
 | Name | Role | Decision | Date |
 |---|---|---|---|
-| Saumay Ashish | Business Analyst / Product Owner | ☐ Approved ☐ Changes Requested | |
-| (Engineering) | Senior Full-Stack Engineer | ☐ Acknowledged feasibility within locked stack | |
+| Saumay Ashish | Business Analyst / Product Owner | ☑ Approved | 2026-07-05 |
+| (Engineering) | Senior Full-Stack Engineer | ☑ Acknowledged feasibility within locked stack | 2026-07-05 |
 
 *This BRD is considered approved for Phase 1 baseline once the Business Analyst signs off above. Functional decomposition proceeds in `FRD.md` only after this sign-off.*

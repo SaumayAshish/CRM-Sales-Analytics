@@ -171,7 +171,7 @@
 | id | UUID | PK | — | — | FR-33 |
 | scoring_rule_id | UUID | FK → scoring_rules.id, NOT NULL | Parent rule set | — | FR-33 |
 | field_name | VARCHAR(50) | NOT NULL | Lead field evaluated | `"source_id"` | FR-33 |
-| operator | VARCHAR(20) | NOT NULL | Comparison operator | `"equals"`, `"greater_than"` | FR-33 |
+| operator | VARCHAR(30) | NOT NULL | Comparison operator | `"equals"`, `"greater_than"`, `"greater_than_or_equal"` | FR-33, FR-50 (widened from VARCHAR(20) at Phase 3, migration 0005 — caught by scoring-engine unit tests) |
 | comparison_value | VARCHAR(100) | NOT NULL | Value compared against | `"Referral"` | FR-33 |
 | weight | INTEGER | NOT NULL | Points added if criterion matches | `15` | FR-33 |
 

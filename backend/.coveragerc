@@ -1,0 +1,11 @@
+[run]
+omit =
+    app/scripts/*
+
+[report]
+; app/scripts/seed.py is a one-off data-generation tool, verified manually
+; against a live database (see docs/PHASE_REPORTS/phase_2.md), not CRUD
+; business logic -- excluded so the 70%+ NFR-07 target measures the
+; actual API/service/model code it's meant to cover.
+exclude_lines =
+    pragma: no cover

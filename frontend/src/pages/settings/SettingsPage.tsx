@@ -63,8 +63,10 @@ export function SettingsPage() {
                   <span>{formatCurrency(user.quota)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Closed Won Revenue</span>
-                  <span>{myPerformance ? formatCurrency(Number(myPerformance.closed_won_revenue)) : "—"}</span>
+                  <span className="text-muted-foreground">Closed Won Revenue (this quarter)</span>
+                  <span>
+                    {myPerformance ? formatCurrency(Number(myPerformance.closed_won_revenue_current_quarter)) : "—"}
+                  </span>
                 </div>
                 <div className="flex justify-between font-medium">
                   <span>Attainment</span>

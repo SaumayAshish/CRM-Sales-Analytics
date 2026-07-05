@@ -144,6 +144,7 @@ export interface RepPerformanceRow {
   won_count: number
   lost_count: number
   closed_won_revenue: string
+  closed_won_revenue_current_quarter: string
   activity_count: number
   quota_attainment: string | null
 }

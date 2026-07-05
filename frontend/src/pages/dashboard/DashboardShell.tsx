@@ -1,5 +1,6 @@
 import { Link, Outlet, useLocation } from "react-router-dom"
 import {
+  BarChart3,
   Building2,
   KanbanSquare,
   LayoutDashboard,
@@ -15,12 +16,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { useAuth } from "@/hooks/useAuth"
+import type { Role } from "@/types"
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { to: string; label: string; icon: typeof UsersRound; roles?: Role[] }[] = [
   { to: "/leads", label: "Leads", icon: UsersRound },
   { to: "/opportunities", label: "Pipeline", icon: KanbanSquare },
   { to: "/accounts", label: "Accounts", icon: Building2 },
   { to: "/contacts", label: "Contacts", icon: Users },
+  { to: "/reports", label: "Reports", icon: BarChart3, roles: ["Admin", "Manager"] },
 ]
 
 function breadcrumbFor(pathname: string): string {
@@ -46,7 +49,7 @@ export function DashboardShell() {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon
             const active = location.pathname.startsWith(item.to)
-            return (
+            const link = (
               <Link
                 key={item.to}
                 to={item.to}
@@ -57,6 +60,13 @@ export function DashboardShell() {
                 <Icon className="size-4" />
                 {item.label}
               </Link>
+            )
+            return item.roles ? (
+              <RoleGuard key={item.to} allow={item.roles}>
+                {link}
+              </RoleGuard>
+            ) : (
+              link
             )
           })}
         </nav>

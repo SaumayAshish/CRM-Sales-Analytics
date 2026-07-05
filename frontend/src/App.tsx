@@ -11,6 +11,7 @@ import { DashboardShell } from "@/pages/dashboard/DashboardShell"
 import { LeadDetailPage } from "@/pages/leads/LeadDetailPage"
 import { LeadsListPage } from "@/pages/leads/LeadsListPage"
 import { KanbanPage } from "@/pages/opportunities/KanbanPage"
+import { ReportsPage } from "@/pages/reports/ReportsPage"
 import { SettingsPage } from "@/pages/settings/SettingsPage"
 
 function LoginRoute() {
@@ -34,6 +35,7 @@ function App() {
           <Route path="/accounts" element={<AccountsListPage />} />
           <Route path="/accounts/:id" element={<Account360Page />} />
           <Route path="/contacts" element={<ContactsListPage />} />
+          <Route path="/reports" element={<ReportsPage />} />
           <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>

@@ -27,7 +27,13 @@ export function KanbanPage() {
   const { role } = useAuth()
   const canEdit = role !== "Viewer" // BR-12: Viewer is read-only everywhere.
   const { data: stages, isLoading: stagesLoading } = usePipelineStages()
-  const { data: opportunities, isLoading: oppsLoading } = useOpportunitiesList({ page_size: 200 })
+  // Kanban needs every open/closed deal in view to render accurate per-stage
+  // totals -- a lower page_size here silently undercounted once total
+  // opportunities exceeded it (found via live testing, fixed alongside the
+  // API's matching le=200 cap). 2000 comfortably covers current seed volume
+  // (1,540); a true Kanban-scale fix (virtualized/paginated columns) is a
+  // reasonable follow-up if this data volume grows another order of magnitude.
+  const { data: opportunities, isLoading: oppsLoading } = useOpportunitiesList({ page_size: 2000 })
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [pendingTarget, setPendingTarget] = useState<{ opportunityId: string; stage: PipelineStageOption } | null>(null)
   const [editingProbability, setEditingProbability] = useState<Opportunity | null>(null)

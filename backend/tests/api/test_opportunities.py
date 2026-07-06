@@ -149,3 +149,29 @@ def test_weighted_value_computed(client, db, reference_data):
 
     assert response.status_code == 200
     assert response.json()["weighted_value"] == 15000.0
+
+
+def test_page_size_above_old_200_cap_returns_everything(client, db, reference_data):
+    """Regression test for a bug found via live Kanban testing (Phase 6):
+    the old le=200 cap silently truncated the board's single-page fetch
+    once total opportunities exceeded 200, undercounting per-stage totals.
+    """
+    owner = make_user(db, reference_data["roles"]["Admin"].id, email="admin2@example.com")
+    account = Account(name="Ferrocore", owner_id=owner.id)
+    db.add(account)
+    db.flush()
+    stage = _stage(reference_data, "Qualification")
+    for i in range(210):
+        db.add(
+            Opportunity(
+                name=f"Deal {i}", account_id=account.id, owner_id=owner.id, stage_id=stage.id,
+                amount=1000, probability=0.1, expected_close_date="2026-12-01",
+            )
+        )
+    db.commit()
+    headers = auth_header(client, "admin2@example.com")
+
+    response = client.get("/api/v1/opportunities?page_size=250", headers=headers)
+
+    assert response.status_code == 200
+    assert len(response.json()) == 210

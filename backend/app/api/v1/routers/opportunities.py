@@ -68,9 +68,18 @@ def list_opportunities(
     close_date_from: date | None = Query(None),
     close_date_to: date | None = Query(None),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
+    page_size: int = Query(50, ge=1, le=2000),
 ) -> list[dict]:
-    """FR-16: filter by stage/owner/close_date, server-side."""
+    """FR-16: filter by stage/owner/close_date, server-side.
+
+    Bug found via live Kanban testing (Phase 6 UAT pass): the old le=200
+    cap combined with no ORDER BY meant the Kanban board (which requests
+    everything in one page to render its columns) silently rendered
+    whichever ~200 rows Postgres happened to return, undercounting
+    per-stage totals and potentially hiding real deals from view once
+    total opportunities exceeded 200. Raised the cap and added a
+    deterministic order so the same page always returns the same rows.
+    """
     query = db.query(Opportunity).filter(Opportunity.deleted_at.is_(None))
     if current_user.role == ROLE_REP:
         query = query.filter(Opportunity.owner_id == current_user.id)
@@ -83,7 +92,12 @@ def list_opportunities(
     if close_date_to:
         query = query.filter(Opportunity.expected_close_date <= close_date_to)
 
-    opportunities = query.offset((page - 1) * page_size).limit(page_size).all()
+    opportunities = (
+        query.order_by(Opportunity.created_at.desc(), Opportunity.id)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
     return [_to_read(o) for o in opportunities]
 
 

@@ -1,0 +1,4 @@
+# entrypoint.sh runs inside a Linux container -- a CRLF line ending would
+# break its shebang ("/bin/sh^M: bad interpreter") if Windows' autocrlf
+# ever converted it on checkout.
+*.sh text eol=lf

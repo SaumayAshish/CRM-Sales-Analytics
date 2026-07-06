@@ -10,6 +10,7 @@ services:
       - "5433:5432"
     volumes:
       - crm_pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U crm_user -d crm_sales_analytics"]
       interval: 5s
@@ -23,8 +24,42 @@ services:
       DATABASE_URL: postgresql+psycopg2://crm_user:crm_password@db:5432/crm_sales_analytics
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-insecure-key-change-me}
       ENVIRONMENT: development
+      CORS_ORIGINS: http://localhost:8080,http://localhost:5173
     ports:
       - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Optional: `docker compose --profile tools up` to also start pgAdmin
+  # for browsing the database with a GUI. Not part of the default stack.
+  pgadmin:
+    image: dpage/pgadmin4:8
+    restart: unless-stopped
+    profiles: ["tools"]
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@northwindsales.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
     depends_on:
       db:
         condition: service_healthy

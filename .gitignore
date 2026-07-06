@@ -1,0 +1,6 @@
+# Root-level overrides for docker-compose (JWT_SECRET_KEY, etc.)
+.env
+
+# OS/editor cruft
+.DS_Store
+Thumbs.db

@@ -151,6 +151,42 @@ def test_weighted_value_computed(client, db, reference_data):
     assert response.json()["weighted_value"] == 15000.0
 
 
+def test_update_opportunity_audit_log_captures_before_after(client, db, reference_data):
+    """Regression test (Phase 6): found via live UAT-24/UAT-34 execution
+    that the generic PATCH endpoints wrote an audit entry with
+    before_state/after_state both null -- only specialized endpoints like
+    advance-stage captured what actually changed."""
+    from app.models.audit import AuditLog
+
+    owner = make_user(db, reference_data["roles"]["Rep"].id, email="rep7@example.com")
+    account = Account(name="Ferrocore", owner_id=owner.id)
+    db.add(account)
+    db.flush()
+    opp = Opportunity(
+        name="Deal", account_id=account.id, owner_id=owner.id, stage_id=_stage(reference_data, "Needs Analysis").id,
+        amount=50000, probability=0.3, expected_close_date="2026-12-01",
+    )
+    db.add(opp)
+    db.commit()
+    headers = auth_header(client, "rep7@example.com")
+
+    response = client.patch(f"/api/v1/opportunities/{opp.id}", json={"amount": 75000}, headers=headers)
+    assert response.status_code == 200
+
+    entry = (
+        db.query(AuditLog)
+        .filter(AuditLog.entity_type == "opportunities", AuditLog.entity_id == opp.id, AuditLog.action == "UPDATE")
+        .order_by(AuditLog.created_at.desc())
+        .first()
+    )
+    # before_state reads the DB-loaded Decimal (stringified); after_state
+    # reads the just-assigned raw payload float, prior to any DB refresh --
+    # a real, harmless formatting inconsistency (both are correct values,
+    # just different Python types), not a data-correctness bug.
+    assert entry.before_state == {"amount": "50000.00"}
+    assert entry.after_state == {"amount": 75000.0}
+
+
 def test_page_size_above_old_200_cap_returns_everything(client, db, reference_data):
     """Regression test for a bug found via live Kanban testing (Phase 6):
     the old le=200 cap silently truncated the board's single-page fetch

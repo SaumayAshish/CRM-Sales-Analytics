@@ -13,7 +13,7 @@ from app.api.deps import ROLE_ADMIN, ROLE_MANAGER, ROLE_REP, CurrentUser, get_cu
 from app.db.session import get_db
 from app.models.account import Contact
 from app.schemas.account import ContactCreate, ContactRead, ContactUpdate
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 
 router = APIRouter()
 
@@ -83,10 +83,16 @@ def update_contact(
             Contact.account_id == contact.account_id, Contact.is_primary.is_(True), Contact.id != contact.id
         ).update({"is_primary": False})
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
+    before_state = field_snapshot(contact, changed_fields)
+
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(contact, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="contacts", entity_id=contact.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="contacts", entity_id=contact.id,
+        before_state=before_state, after_state=field_snapshot(contact, changed_fields),
+    )
     db.commit()
     db.refresh(contact)
     return contact

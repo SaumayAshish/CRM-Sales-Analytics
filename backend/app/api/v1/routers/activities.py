@@ -18,7 +18,7 @@ from app.models.activity import Activity
 from app.models.lead import Lead
 from app.models.opportunity import Opportunity
 from app.schemas.activity import ActivityCreate, ActivityRead, ActivityUpdate
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 from app.services.lead_workflow import rescore_and_maybe_assign
 from app.services.workflow_engine import dispatch_event
 
@@ -125,10 +125,16 @@ def update_activity(
     if current_user.role == ROLE_REP and activity.logged_by != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your activity")
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
+    before_state = field_snapshot(activity, changed_fields)
+
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(activity, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="activities", entity_id=activity.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="activities", entity_id=activity.id,
+        before_state=before_state, after_state=field_snapshot(activity, changed_fields),
+    )
     db.commit()
     db.refresh(activity)
     return activity

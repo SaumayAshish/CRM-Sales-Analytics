@@ -23,7 +23,7 @@ from app.schemas.opportunity import (
     OpportunityUpdate,
 )
 from app.services.activity_log import log_system_activity
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 from app.services.stage_engine import CLOSED_STAGE_NAMES, validate_transition
 from app.services.workflow_engine import dispatch_event
 
@@ -132,10 +132,16 @@ def update_opportunity(
     if opportunity.closed_at is not None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Opportunity is closed; use Admin reopen via stage endpoint")
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
+    before_state = field_snapshot(opportunity, changed_fields)
+
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(opportunity, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="opportunities", entity_id=opportunity.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="opportunities", entity_id=opportunity.id,
+        before_state=before_state, after_state=field_snapshot(opportunity, changed_fields),
+    )
     db.commit()
     db.refresh(opportunity)
     return _to_read(opportunity)

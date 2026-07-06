@@ -54,6 +54,32 @@ def create_scoring_rule(
     return rule
 
 
+@router.patch("/lead-scoring/rules/{rule_id}/toggle", response_model=ScoringRuleRead)
+def toggle_scoring_rule(
+    rule_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: CurrentUser = Depends(require_role([ROLE_ADMIN])),
+) -> ScoringRule:
+    """FR-34: found missing via live UAT-31/32 execution -- create_scoring_rule's
+    own docstring said "Admin is expected to deactivate the old rule via
+    PATCH," but no PATCH endpoint existed anywhere, so an Admin genuinely
+    had no way to retire a rule without direct DB access, contradicting
+    FR-34's "no deployment required" claim. Mirrors
+    PATCH /workflows/{id}/toggle's existing pattern exactly."""
+    rule = db.query(ScoringRule).filter(ScoringRule.id == rule_id).first()
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scoring rule not found")
+
+    rule.is_active = not rule.is_active
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="scoring_rules", entity_id=rule.id,
+        after_state={"is_active": rule.is_active},
+    )
+    db.commit()
+    db.refresh(rule)
+    return rule
+
+
 @router.post("/leads/{lead_id}/recalculate-score", response_model=ScoreBreakdownResponse)
 def recalculate_score(
     lead_id: uuid.UUID,

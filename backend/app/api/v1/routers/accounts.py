@@ -20,7 +20,7 @@ from app.models.opportunity import Opportunity
 from app.schemas.account import AccountCreate, AccountRead, AccountUpdate, ContactRead
 from app.schemas.activity import ActivityRead
 from app.schemas.opportunity import OpportunityRead
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 
 router = APIRouter()
 
@@ -112,10 +112,16 @@ def update_account(
     if current_user.role == ROLE_REP and account.owner_id != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your account")
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
+    before_state = field_snapshot(account, changed_fields)
+
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(account, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="accounts", entity_id=account.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="accounts", entity_id=account.id,
+        before_state=before_state, after_state=field_snapshot(account, changed_fields),
+    )
     db.commit()
     db.refresh(account)
     return account

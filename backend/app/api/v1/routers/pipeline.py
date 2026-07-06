@@ -12,7 +12,7 @@ from app.api.deps import ROLE_ADMIN, CurrentUser, get_current_user, require_role
 from app.db.session import get_db
 from app.models.reference import PipelineStage
 from app.schemas.pipeline import PipelineStageCreate, PipelineStageRead, PipelineStageUpdate
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 
 router = APIRouter()
 
@@ -57,10 +57,16 @@ def update_stage(
     update_data = payload.model_dump(exclude_unset=True)
     if "allowed_next_stage_ids" in update_data and update_data["allowed_next_stage_ids"] is not None:
         update_data["allowed_next_stage_ids"] = [str(sid) for sid in update_data["allowed_next_stage_ids"]]
+    changed_fields = list(update_data.keys())
+    before_state = field_snapshot(stage, changed_fields)
+
     for field, value in update_data.items():
         setattr(stage, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="pipeline_stages", entity_id=stage.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="pipeline_stages", entity_id=stage.id,
+        before_state=before_state, after_state=field_snapshot(stage, changed_fields),
+    )
     db.commit()
     db.refresh(stage)
     return stage

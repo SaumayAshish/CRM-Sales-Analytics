@@ -22,7 +22,7 @@ from app.models.reference import PipelineStage
 from app.schemas.activity import ActivityRead
 from app.schemas.lead import LeadAssignRequest, LeadConvertResponse, LeadCreate, LeadRead, LeadUpdate
 from app.services.activity_log import log_system_activity
-from app.services.audit import write_audit_log
+from app.services.audit import field_snapshot, write_audit_log
 from app.services.lead_workflow import rescore_and_maybe_assign
 from app.services.workflow_engine import dispatch_event
 
@@ -115,10 +115,16 @@ def update_lead(
     if current_user.role == ROLE_REP and lead.assigned_to != current_user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not your lead")
 
+    changed_fields = list(payload.model_dump(exclude_unset=True).keys())
+    before_state = field_snapshot(lead, changed_fields)
+
     for field, value in payload.model_dump(exclude_unset=True).items():
         setattr(lead, field, value)
 
-    write_audit_log(db, actor_id=current_user.id, action="UPDATE", entity_type="leads", entity_id=lead.id)
+    write_audit_log(
+        db, actor_id=current_user.id, action="UPDATE", entity_type="leads", entity_id=lead.id,
+        before_state=before_state, after_state=field_snapshot(lead, changed_fields),
+    )
     rescore_and_maybe_assign(db, lead)
     db.commit()
     db.refresh(lead)

@@ -139,6 +139,7 @@ export interface RepPerformanceRow {
   user_id: string
   first_name: string
   last_name: string
+  email: string
   quota: string | null
   open_opportunity_count: number
   won_count: number

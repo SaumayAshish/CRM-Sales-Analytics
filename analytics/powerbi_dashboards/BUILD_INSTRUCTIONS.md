@@ -106,22 +106,33 @@ page (in Desktop's simulation) should see only their own row across every visual
 
 ## 6. Row-Level Security (Desktop-simulated — see `analytics/README.md` §4)
 
+**Important correction:** an earlier draft of this doc specified `[user_id] = USERNAME()`. That's
+wrong and can never match — `USERNAME()` returns a *login identity* (your Windows username in
+Desktop, or the signed-in user's email/UPN when a report is published to Power BI Service), never
+a UUID. Migration 0010 added `email` to `vw_rep_performance` specifically so the filter can compare
+against something `USERNAME()` could plausibly equal.
+
 **Modeling** tab → **Manage Roles** → **Create**:
 
 1. **Role: Rep** — on the `vw_rep_performance` table, add a filter DAX expression:
-   `[user_id] = USERNAME()` (in Desktop, `USERNAME()` returns your Windows/AD login, which won't
-   match a seeded UUID — this is expected; the role definition documents the *intended* filter
-   shape for a real deployment, verified via "View As" with a manually substituted UUID instead
-   of relying on `USERNAME()` matching).
+   `[email] = USERNAME()`. This is the standard, actually-functional RLS pattern *when the report
+   is published to Power BI Service* and reps sign in with an org account matching their seeded
+   email (e.g. `rep1@northwindsales.com`) — `USERNAME()` in Service returns that signed-in user's
+   UPN/email. In Desktop alone, `USERNAME()` returns your local Windows username, which won't match
+   any seeded email either — see the "View As" step below for how to actually test the filter
+   without a Service deployment.
 2. **Role: Manager** — no filter (Managers see their full team per BR-11; team-level filtering
    would require a `team_id` column exposed on the rep-performance view, a reasonable Phase 6
    enhancement, not built this phase).
 3. **Role: Viewer / Admin** — no filter.
 
-**Modeling** → **View As** → check "Rep" → in the role editor, temporarily hardcode a real seeded
-rep's UUID in place of `USERNAME()` to confirm the filter actually restricts rows, then revert
-before saving. Take a screenshot of this filtered view for the README as evidence RLS logic works,
-clearly captioned "Desktop simulation, not Service-enforced."
+**Modeling** → **View As** → check "Rep" → **Other user** → type a real seeded rep's email (e.g.
+`rep1@northwindsales.com`) directly into the "Other user" box (View As lets you substitute a
+literal value for what `USERNAME()` would return, so you don't need an actual Service deployment
+to confirm the filter logic works) → confirm only that rep's row appears across every visual on
+the Rep Performance page → revert before saving. Take a screenshot of this filtered view for the
+README as evidence the RLS filter logic works, clearly captioned "Desktop simulation via View As,
+not Service-enforced multi-user security."
 
 ---
 

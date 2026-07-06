@@ -44,13 +44,19 @@ tenant), the RLS roles below are built and documented for the "View As Roles" wo
 labeled here explicitly as a demonstration of RLS *design*, not a claim of enforced multi-user
 security:
 
-| Role | DAX filter (conceptual) | Mirrors |
+| Role | DAX filter | Mirrors |
 |---|---|---|
 | Admin/Manager | No filter (sees everything) | BR-11 (Manager sees full team scope; Admin sees all) |
-| Rep | `[owner_id] = USERNAME()`-style filter on Opportunities/Leads tables | BR-11 (Rep sees only their own records) |
+| Rep | `[email] = USERNAME()` on `vw_rep_performance` | BR-11 (Rep sees only their own records) |
 | Viewer | No filter, but no edit capability (Power BI reports are inherently read-only for viewers anyway) | BR-12 |
 
-Full DAX role definitions are in `powerbi_dashboards/BUILD_INSTRUCTIONS.md` §5.
+**Correction from an earlier draft:** the Rep filter was originally written as `[user_id] =
+USERNAME()`. That can never match — `USERNAME()` returns a login identity (Windows username in
+Desktop, a signed-in user's email/UPN in Power BI Service), never a UUID. Migration 0010 added
+`email` to `vw_rep_performance` so the filter compares against something `USERNAME()` could
+plausibly equal in a real Service deployment with matching org accounts. Full DAX role
+definitions and the Desktop "View As" testing workaround are in
+`powerbi_dashboards/BUILD_INSTRUCTIONS.md` §6.
 
 ## 5. Embedding strategy: screenshot gallery
 

@@ -65,3 +65,37 @@ def test_rep_performance_visible_to_manager_and_admin(client, db, reference_data
     response = client.get("/api/v1/analytics/rep-performance", headers=headers)
 
     assert response.status_code == 200
+
+
+def test_rep_performance_scoped_to_own_team_for_manager(client, db, reference_data):
+    """BR-11: a Manager sees only their own team's reps, not every region.
+
+    Regression test for a real bug found via live UAT-30 execution: the
+    endpoint previously ignored team_id entirely and returned every rep
+    system-wide to any Manager, a cross-region data exposure.
+    """
+    from app.models.reference import Team
+
+    other_team = Team(name="East Region Sales", region="East")
+    db.add(other_team)
+    db.flush()
+
+    manager = make_user(
+        db, reference_data["roles"]["Manager"].id, team_id=reference_data["team"].id, email="west_mgr@example.com"
+    )
+    own_team_rep = make_user(
+        db, reference_data["roles"]["Rep"].id, team_id=reference_data["team"].id, email="west_rep@example.com"
+    )
+    other_team_rep = make_user(
+        db, reference_data["roles"]["Rep"].id, team_id=other_team.id, email="east_rep@example.com"
+    )
+    db.commit()
+    headers = auth_header(client, "west_mgr@example.com")
+
+    response = client.get("/api/v1/analytics/rep-performance", headers=headers)
+
+    assert response.status_code == 200
+    user_ids = [row["user_id"] for row in response.json()]
+    assert str(manager.id) in user_ids
+    assert str(own_team_rep.id) in user_ids
+    assert str(other_team_rep.id) not in user_ids

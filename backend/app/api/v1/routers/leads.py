@@ -46,6 +46,17 @@ def create_lead(
         context={"source_id": str(lead.source_id), "owner_id": lead.assigned_to},
     )
     rescore_and_maybe_assign(db, lead)
+
+    # Found via live UAT testing (Phase 6): a Rep-created lead that doesn't
+    # score Hot (the large majority) stayed unassigned, and get_lead's
+    # ownership check then blocked the very Rep who just created it from
+    # viewing their own lead. FR-52's Hot-lead auto-assignment above always
+    # runs first and takes precedence -- this only fills the gap for
+    # everything else, defaulting a Rep's own leads to themselves rather
+    # than leaving them invisible to their creator.
+    if current_user.role == ROLE_REP and lead.assigned_to is None:
+        lead.assigned_to = current_user.id
+
     db.commit()
     db.refresh(lead)
     return lead

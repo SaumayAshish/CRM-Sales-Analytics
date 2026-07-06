@@ -34,11 +34,20 @@ def rep_performance(
     db: Session = Depends(get_db),
     current_user: CurrentUser = Depends(require_role([ROLE_ADMIN, ROLE_MANAGER, ROLE_REP])),
 ) -> list[dict]:
-    """KPI_Catalog.md: Manager/Admin see all reps; a Rep sees only their own
-    row (BR-23's quota attainment must be visible to the Rep it belongs to)."""
+    """BR-11: Admin sees all reps; Manager sees only their own team (not
+    system-wide -- found via live UAT-30 execution that this previously
+    returned every rep regardless of team, a real cross-region data
+    exposure); Rep sees only their own row (BR-23's quota attainment must
+    be visible to the Rep it belongs to)."""
     if current_user.role == ROLE_REP:
         return _rows_as_dicts(
             db, "SELECT * FROM vw_rep_performance WHERE user_id = :user_id", {"user_id": str(current_user.id)}
+        )
+    if current_user.role == ROLE_MANAGER:
+        if current_user.team_id is None:
+            return []
+        return _rows_as_dicts(
+            db, "SELECT * FROM vw_rep_performance WHERE team_id = :team_id", {"team_id": str(current_user.team_id)}
         )
     return _rows_as_dicts(db, "SELECT * FROM vw_rep_performance")
 

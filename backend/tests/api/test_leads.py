@@ -28,6 +28,24 @@ def test_create_lead_success(client, db, reference_data):
     assert body["is_converted"] is False
 
 
+def test_rep_created_lead_defaults_to_self_when_not_hot(client, db, reference_data):
+    """Regression test (Phase 6): a Rep-created lead that doesn't score Hot
+    used to stay unassigned, and the ownership check on GET then blocked
+    the very Rep who created it from viewing their own lead. Found via
+    live UAT testing, not assumed from reading the create_lead code."""
+    rep = make_user(db, reference_data["roles"]["Rep"].id, email="rep_self@example.com")
+    db.commit()
+    headers = auth_header(client, "rep_self@example.com")
+
+    response = client.post("/api/v1/leads", json=_lead_payload(reference_data["source"].id, "selfassign@example.com"), headers=headers)
+    lead_id = response.json()["id"]
+    assert response.json()["score_band"] != "Hot"
+
+    get_response = client.get(f"/api/v1/leads/{lead_id}", headers=headers)
+    assert get_response.status_code == 200
+    assert get_response.json()["assigned_to"] == str(rep.id)
+
+
 def test_create_lead_writes_audit_log(client, db, reference_data):
     make_user(db, reference_data["roles"]["Rep"].id, email="rep_audit@example.com")
     db.commit()

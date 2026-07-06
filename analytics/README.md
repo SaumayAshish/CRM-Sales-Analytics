@@ -1,8 +1,8 @@
 # Analytics Layer — Architecture
 
-**Status:** SQL layer built and verified against live data. Power BI `.pbix` files are pending —
-see `powerbi_dashboards/BUILD_INSTRUCTIONS.md` for the step-by-step Desktop build, since Power BI
-Desktop has no scriptable API for an agent to author `.pbix` files directly.
+**Status:** Complete. SQL layer built and verified against live data; all 4 dashboards built in
+Power BI Desktop following `powerbi_dashboards/BUILD_INSTRUCTIONS.md` and saved as
+`crm_sales_analytics.pbix`; screenshots captured into `screenshots/` and `frontend/public/reports/`.
 
 ## 1. Connection mode: Import (not DirectQuery)
 
@@ -75,18 +75,18 @@ analytics/
 ├── sql_queries/                  # 22 queries, tested against live data, documented
 │   └── README.md
 ├── powerbi_dashboards/
-│   └── BUILD_INSTRUCTIONS.md    # step-by-step Desktop build for all 4 dashboards
-│   └── *.pbix                   # pending -- your Power BI Desktop session
-└── screenshots/                  # pending -- PNG exports once dashboards are built
+│   ├── BUILD_INSTRUCTIONS.md    # step-by-step Desktop build for all 4 dashboards
+│   └── crm_sales_analytics.pbix # built 2026-07-06
+└── screenshots/                  # 4 PNG exports, captured 2026-07-06
 ```
 
-## 7. What's built vs. what's pending
+## 7. What's built
 
 | Deliverable | Status |
 |---|---|
-| SQL analytics layer (22 queries, tested) | ✅ Built and verified this phase |
-| KPI Catalog cross-check | ✅ Built this phase |
-| Power BI build instructions | ✅ Built this phase |
-| `.pbix` files (4 dashboards) | ⏳ Pending — requires your Power BI Desktop session |
-| Dashboard screenshots | ⏳ Pending — same session |
-| React `/reports` gallery page | ✅ Shell built this phase, ready to receive screenshots |
+| SQL analytics layer (22 queries, tested) | ✅ |
+| KPI Catalog cross-check | ✅ |
+| Power BI build instructions | ✅ |
+| `.pbix` file (4 dashboards) | ✅ Built 2026-07-06 |
+| Dashboard screenshots | ✅ Captured 2026-07-06, in both `screenshots/` and `frontend/public/reports/` |
+| React `/reports` gallery page | ✅ Displaying the real screenshots, verified |

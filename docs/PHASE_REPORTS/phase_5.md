@@ -13,8 +13,15 @@
 - [x] `analytics/powerbi_dashboards/BUILD_INSTRUCTIONS.md` — exact step-by-step Desktop build for all 4 dashboards, every visual mapped to a query
 - [x] React "Reports" page (`/reports`), RBAC-gated to Admin/Manager, ready to receive screenshots
 - [x] This completion report
-- [ ] 4 `.pbix` files — **pending your Power BI Desktop session** (see §2)
-- [ ] Dashboard screenshots (PNG) — **pending the same session**
+- [x] `.pbix` file (`analytics/powerbi_dashboards/crm_sales_analytics.pbix`) — built by the BA in Power BI Desktop, all 4 report pages present
+- [x] Dashboard screenshots (PNG) in `analytics/screenshots/` and `frontend/public/reports/` — captured 2026-07-06, verified: every visual matches its planned KPI mapping (including the documented Commit Forecast $0 limitation showing up exactly as predicted)
+
+**Update (2026-07-06):** the Power BI build is complete. All 4 dashboards were built following
+`BUILD_INSTRUCTIONS.md`, screenshots captured and dropped into both `analytics/screenshots/` and
+`frontend/public/reports/` (confirmed rendering correctly — filenames match the Reports page's
+expected names exactly). Phase 5 is fully closed; nothing carried forward except the two
+documented KPI gaps in §5 below (Pipeline Coverage Ratio, Commit Forecast), which are BA scope
+decisions, not build defects.
 
 ---
 

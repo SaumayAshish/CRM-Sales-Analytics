@@ -44,9 +44,21 @@ Full justification for each choice: [`docs/Architecture.md`](docs/Architecture.m
 
 ## Screenshots
 
+**Analytics dashboards** (Power BI, built on the SQL layer in `analytics/sql_queries/`):
+
+| Executive Summary | Pipeline Health |
+|---|---|
+| ![Executive Summary](analytics/screenshots/executive_summary.png) | ![Pipeline Health](analytics/screenshots/pipeline_health.png) |
+
+| Rep Performance | Lead Funnel |
+|---|---|
+| ![Rep Performance](analytics/screenshots/rep_performance.png) | ![Lead Funnel](analytics/screenshots/lead_funnel.png) |
+
+Every visual traces to a documented KPI — see `analytics/KPI_CROSS_CHECK.md`.
+
 The Kanban pipeline, Leads list, Account 360, and RBAC gating (Admin/Manager/Rep/Viewer) were all
 visually verified live in-browser during Phase 4 against the real backend and seed data. Committed
-screenshot image assets for this section are still TODO (Phase 6 polish pass) — see
+screenshot image assets for those app screens are still TODO (Phase 6 polish pass) — see
 `docs/PHASE_REPORTS/phase_4.md` for what was verified and how.
 
 ## Getting Started

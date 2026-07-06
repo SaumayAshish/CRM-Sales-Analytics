@@ -8,6 +8,7 @@ from app.models.notification import Notification
 from app.models.opportunity import Opportunity
 from app.models.reference import (
     ActivityType,
+    CompanyTarget,
     LeadSource,
     LossReason,
     PipelineStage,
@@ -25,7 +26,7 @@ from app.models.workflow import (
 
 __all__ = [
     "Account", "Contact", "Activity", "AuditLog", "RevokedToken", "Lead",
-    "Opportunity", "ActivityType", "LeadSource", "LossReason", "PipelineStage",
+    "Opportunity", "ActivityType", "CompanyTarget", "LeadSource", "LossReason", "PipelineStage",
     "Role", "Team", "User", "AssignmentRule", "ScoringCriteria", "ScoringRule",
     "Notification", "WorkflowRule", "WorkflowExecutionLog",
 ]

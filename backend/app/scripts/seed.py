@@ -362,11 +362,20 @@ def seed_opportunities(db, ref: dict, accounts: list[Account], users: list[User]
             if stage.id == lost_stage.id:
                 loss_reason_id = random.choice(ref["reasons"]).id
 
+        # FR-65: a rep can override probability above a stage's default to flag
+        # a high-confidence deal (e.g. a verbal commitment). Simulate ~30% of
+        # open Negotiation deals having had this done, so Commit Forecast
+        # (probability >= 0.75) reflects genuine feature usage rather than
+        # sitting at $0 because no seeded deal ever exercises the override.
+        probability = stage.default_probability
+        if stage.name == "Negotiation" and closed_at is None and random.random() < 0.30:
+            probability = round(random.uniform(0.75, 0.95), 3)
+
         opportunities.append(
             Opportunity(
                 name=f"{account.name} - {fake.bs().capitalize()}", account_id=account.id,
                 owner_id=account.owner_id if random.random() < 0.7 else random.choice(owners).id,
-                stage_id=stage.id, amount=amount, probability=stage.default_probability,
+                stage_id=stage.id, amount=amount, probability=probability,
                 expected_close_date=(created_at + timedelta(days=random.randint(30, 180))).date(),
                 loss_reason_id=loss_reason_id, closed_at=closed_at, created_at=created_at,
             )

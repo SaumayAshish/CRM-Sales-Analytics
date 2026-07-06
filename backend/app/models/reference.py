@@ -1,15 +1,17 @@
 """
 Reference/lookup tables: roles, teams, lead_sources, pipeline_stages,
-loss_reasons, activity_types.
+loss_reasons, activity_types, company_targets.
 
-Traces to: Data_Dictionary.md SS1, SS2, SS4, SS8, SS9, SS11; BR-01, BR-06, BR-07, BR-09.
+Traces to: Data_Dictionary.md SS1, SS2, SS4, SS8, SS9, SS11; BR-01, BR-06, BR-07, BR-09, BR-24.
 """
 
-from sqlalchemy import Numeric, String, Text
+from datetime import date
+
+from sqlalchemy import Date, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.db.base import Base, UUIDPKMixin
+from app.db.base import Base, TimestampMixin, UUIDPKMixin
 
 
 class Role(Base, UUIDPKMixin):
@@ -54,3 +56,15 @@ class ActivityType(Base, UUIDPKMixin):
     __tablename__ = "activity_types"
 
     name: Mapped[str] = mapped_column(String(30), unique=True, nullable=False)
+
+
+class CompanyTarget(Base, UUIDPKMixin, TimestampMixin):
+    """BR-24: company-wide quarterly revenue target, Admin-editable, used by
+    Pipeline Coverage Ratio (KPI_Catalog.md). One row per quarter, identified
+    by its first day (e.g. 2026-07-01 for Q3 2026) -- distinct from per-rep
+    `users.quota` (BR-23), which is an individual target, not a company one."""
+
+    __tablename__ = "company_targets"
+
+    quarter_start: Mapped[date] = mapped_column(Date, unique=True, nullable=False)
+    target_amount: Mapped[float] = mapped_column(Numeric(14, 2), nullable=False)

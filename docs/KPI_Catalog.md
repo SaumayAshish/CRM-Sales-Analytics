@@ -14,7 +14,7 @@
 | Weighted Pipeline Value | `SUM(amount * probability) WHERE stage NOT IN ('Closed Won','Closed Lost')` | Risk-adjusted forecast contribution of open deals (BR-16) | VP of Sales, Manager | Real-time | Informational |
 | Pipeline Stage Distribution | `COUNT(*), SUM(amount) GROUP BY stage_id` | Where deals are concentrated in the funnel | Sales Ops Manager | Real-time | Flag if >50% of pipeline sits in one stage |
 | Average Time in Stage | `AVG(current_timestamp - stage_entered_at)` per stage (requires stage-entry timestamp captured at each transition via audit log) | Identifies bottleneck stages | Sales Ops Manager | Daily | Under 14 days per stage (illustrative) |
-| Pipeline Coverage Ratio | `Total Open Pipeline Value / Quarterly Revenue Target` | Whether enough pipeline exists to hit target | VP of Sales | Weekly | ≥ 3x coverage |
+| Pipeline Coverage Ratio | `Total Open Pipeline Value / Quarterly Revenue Target` (Target from `company_targets`, BR-24, added Phase 6 — see `analytics/sql_queries/23_pipeline_coverage_ratio.sql`) | Whether enough pipeline exists to hit target | VP of Sales | Weekly | ≥ 3x coverage — **currently ~41x against live seed data**, a real finding about the seed data's pipeline concentration relative to a single quarter, not a target miscalibration; see the query file for detail |
 
 ## Category: Sales
 
@@ -24,7 +24,7 @@
 | Average Deal Size (Closed Won) | `AVG(amount) WHERE stage='Closed Won'` | Typical revenue per won deal | Sales Ops Manager | Daily | Informational (trend) |
 | Sales Cycle Length | `AVG(closed_at - created_at) WHERE stage='Closed Won'` | Average days from opportunity creation to close | Sales Ops Manager | Weekly | Under 60 days (illustrative) |
 | Loss Reason Distribution | `COUNT(*) GROUP BY loss_reason_id WHERE stage='Closed Lost'` | Why deals are lost, for enablement/process fixes | Sales Ops Manager | Weekly | Informational |
-| Revenue Closed (Period) | `SUM(amount) WHERE stage='Closed Won' AND closed_at BETWEEN period_start AND period_end` | Actual realized revenue for a period | VP of Sales | Real-time | Compared against quarterly target |
+| Revenue Closed (Period) | `SUM(amount) WHERE stage='Closed Won' AND closed_at BETWEEN period_start AND period_end` | Actual realized revenue for a period | VP of Sales | Real-time | Compared against quarterly target (see `analytics/sql_queries/24_revenue_closed_this_quarter.sql`, added Phase 6) |
 
 ## Category: Lead
 
@@ -53,7 +53,7 @@
 |---|---|---|---|---|---|
 | Forecast vs. Actual Variance | `(SUM(weighted pipeline at period start) - SUM(actual closed won in period)) / SUM(actual closed won in period)` | Core forecast accuracy metric (OBJ-04) | VP of Sales | Monthly (per quarter close) | Variance under 15% |
 | Best-Case Forecast | `SUM(amount) WHERE stage IN ('Proposal','Negotiation')` | Optimistic scenario for planning | VP of Sales | Weekly | Informational |
-| Commit Forecast | `SUM(amount) WHERE stage='Negotiation' AND probability >= 0.75` | Conservative, high-confidence forecast | VP of Sales | Weekly | Informational |
+| Commit Forecast | `SUM(amount) WHERE stage='Negotiation' AND probability >= 0.75` | Conservative, high-confidence forecast | VP of Sales | Weekly | Informational — requires a rep to have manually raised `probability` above the stage default (FR-65, added Phase 6); see `analytics/sql_queries/21_forecast_scenarios.sql` |
 | Forecast Category Trend | `SUM(weighted amount) GROUP BY week, stage` over trailing 8 weeks | Whether forecast is improving or degrading sprint over sprint | VP of Sales, Sales Ops Manager | Weekly | Informational (trend line) |
 
 ---

@@ -2,8 +2,10 @@
 
 Every KPI in `docs/KPI_Catalog.md` (23 total, plus 1 governance KPI), checked against an actual
 SQL query in `analytics/sql_queries/`. Built by first listing all 23, then finding or writing the
-query for each — 8 had no query when this check started; all but 2 now do (see the two rows
-marked "Gap").
+query for each — 8 had no query when this check started (Phase 5); Phase 6 closed the last 3 gaps
+(Pipeline Coverage Ratio, Commit Forecast, Revenue Closed period-scoping) for real rather than
+leaving them documented-but-unsolved. **All 23 dashboard KPIs are now queryable** (1 with a
+notable finding, not a defect — see Pipeline Coverage Ratio below).
 
 ## Pipeline (5)
 
@@ -13,7 +15,7 @@ marked "Gap").
 | Weighted Pipeline Value | `01_pipeline_summary.sql`, `17_kpis_summary.sql` | ✅ |
 | Pipeline Stage Distribution | `01_pipeline_summary.sql` | ✅ |
 | Average Time in Stage | `05_stage_aging.sql` | ✅ (proxy — see scope note 1) |
-| Pipeline Coverage Ratio | — | ❌ **Gap** — no company-wide quarterly revenue target exists in the schema (only per-rep `quota`); fabricating one would violate this project's "never invent data" rule. Needs a BA decision: add a company-level target table/setting, or drop the KPI. |
+| Pipeline Coverage Ratio | `23_pipeline_coverage_ratio.sql` | ✅ **Closed Phase 6** — added `company_targets` table (BR-24, migration 0011), Admin-editable via `PATCH /company-targets/current`. Live result: ~41x coverage against a $4M quarterly target — a genuine finding about the seed data's pipeline concentration (1,286 open deals spread across a 13-month close-date window), not a query defect. |
 
 ## Sales (5)
 
@@ -23,7 +25,7 @@ marked "Gap").
 | Average Deal Size (Closed Won) | `18_average_deal_size.sql` | ✅ (added this phase) |
 | Sales Cycle Length | `11_sales_cycle_length.sql` | ✅ |
 | Loss Reason Distribution | `19_loss_reason_distribution.sql` | ✅ (added this phase) |
-| Revenue Closed (Period) | `17_kpis_summary.sql` (all-time only) | ⚠️ Partial — company-wide *period-scoped* revenue (e.g. "this quarter," matching the per-rep quarterly scoping added in migration 0009) isn't broken out as its own query yet; `08_rep_leaderboard.sql` sums to it per-rep but no single company-wide period figure exists. Cheap follow-up, not done in this pass. |
+| Revenue Closed (Period) | `24_revenue_closed_this_quarter.sql` | ✅ **Closed Phase 6** — company-wide current-quarter figure, mirroring the per-rep scoping already in `vw_rep_performance` (migration 0009). |
 
 ## Lead (6)
 
@@ -52,7 +54,7 @@ marked "Gap").
 |---|---|---|
 | Forecast vs. Actual Variance | `22_forecast_variance.sql` | ✅ (added this phase) |
 | Best-Case Forecast | `21_forecast_scenarios.sql` | ✅ (added this phase) |
-| Commit Forecast | `21_forecast_scenarios.sql` | ⚠️ Structurally always $0 right now — see scope note 3 in `sql_queries/README.md` |
+| Commit Forecast | `21_forecast_scenarios.sql` | ✅ **Closed Phase 6** — `probability` is now editable per-deal (FR-65, `PATCH /opportunities/{id}`), not locked to the stage default; Kanban UI exposes it. See `sql_queries/README.md` for how this differs from just raising Negotiation's stage default. |
 | Forecast Category Trend | `07_forecast_by_month.sql` | ✅ |
 
 ## Governance (1, not a dashboard tile)
@@ -65,12 +67,16 @@ marked "Gap").
 
 ## Summary
 
-- **20 of 23 dashboard KPIs fully queryable**, 1 partial (company-wide period revenue), 2 genuine
-  gaps (Pipeline Coverage Ratio needs a target field that doesn't exist; Average Time-to-Assignment
-  needs live-app data, not seed data).
-- **8 KPIs had no query when this cross-check started** — found by actually going through the
-  catalog line by line against the 17 queries drafted first, not assumed complete.
-- **1 real bug fixed**: Quota Attainment was computing all-time revenue against a quarterly quota,
-  producing 1,000%+ figures. See `analytics/sql_queries/README.md` for the fix.
+- **22 of 23 dashboard KPIs fully queryable**, 1 genuine remaining gap: Average Time-to-Assignment
+  needs a real assignment audit trail, which only exists for live-app usage (the API path writes
+  it), not for bulk-seeded demo data — not something to fake with a proxy that would overclaim.
+- **8 KPIs had no query at all when this cross-check started** (Phase 5) — found by actually going
+  through the catalog line by line against the queries drafted first, not assumed complete.
+- **3 gaps closed in Phase 6**: Pipeline Coverage Ratio (added `company_targets`, BR-24), Commit
+  Forecast (added real per-deal probability override, FR-65), Revenue Closed period-scoping
+  (company-wide quarterly query). All three were closed by building the actual missing capability,
+  not by redefining the KPI to make an existing number fit.
+- **1 real bug fixed in Phase 5**: Quota Attainment was computing all-time revenue against a
+  quarterly quota, producing 1,000%+ figures. See `analytics/sql_queries/README.md` for the fix.
 - Every dashboard visual planned in `analytics/README.md` traces to a row in this table — no
   visual without a KPI, no KPI without a query (except the 2 documented gaps above).

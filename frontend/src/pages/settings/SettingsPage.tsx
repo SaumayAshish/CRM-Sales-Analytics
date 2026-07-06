@@ -1,11 +1,18 @@
-// Traces to: FR-45 (profile/role info), BR-23 (quota display).
-import { useQuery } from "@tanstack/react-query"
+// Traces to: FR-45 (profile/role info), BR-23 (quota display), BR-24/FR-66
+// (company-wide quarterly target, Admin-editable).
+import { useState } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { RoleGuard } from "@/components/shared/RoleGuard"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { getRepPerformance } from "@/api/analytics"
+import { getCurrentCompanyTarget, updateCurrentCompanyTarget } from "@/api/company_targets"
 import { useAuth } from "@/hooks/useAuth"
 
 function formatCurrency(value: number): string {
@@ -14,10 +21,24 @@ function formatCurrency(value: number): string {
 
 export function SettingsPage() {
   const { user, role } = useAuth()
+  const queryClient = useQueryClient()
   const { data: repPerformance } = useQuery({
     queryKey: ["analytics", "rep-performance"],
     queryFn: getRepPerformance,
     enabled: role === "Admin" || role === "Manager" || role === "Rep",
+  })
+  const { data: companyTarget } = useQuery({
+    queryKey: ["company-target", "current"],
+    queryFn: getCurrentCompanyTarget,
+    enabled: role === "Admin",
+  })
+  const [targetInput, setTargetInput] = useState("")
+  const updateTarget = useMutation({
+    mutationFn: (amount: number) => updateCurrentCompanyTarget(amount),
+    onSuccess: () => {
+      toast.success("Quarterly target updated.")
+      queryClient.invalidateQueries({ queryKey: ["company-target"] })
+    },
   })
 
   const myPerformance = repPerformance?.find((r) => r.user_id === user?.id)
@@ -83,6 +104,42 @@ export function SettingsPage() {
       </RoleGuard>
 
       <RoleGuard allow={["Admin"]}>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Company Quarterly Target</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Backs the Pipeline Coverage Ratio KPI (Total Open Pipeline Value ÷ this target).
+              Distinct from an individual rep's quota above.
+            </p>
+            <div className="flex items-end gap-2">
+              <div className="flex-1 space-y-2">
+                <Label>Target for quarter starting {companyTarget?.quarter_start ?? "—"}</Label>
+                <Input
+                  type="number"
+                  placeholder={companyTarget ? String(companyTarget.target_amount) : "Loading…"}
+                  value={targetInput}
+                  onChange={(e) => setTargetInput(e.target.value)}
+                />
+              </div>
+              <Button
+                onClick={() => {
+                  const amount = Number(targetInput)
+                  if (!Number.isFinite(amount) || amount < 0) {
+                    toast.error("Enter a valid non-negative amount.")
+                    return
+                  }
+                  updateTarget.mutate(amount)
+                }}
+                disabled={updateTarget.isPending || !targetInput}
+              >
+                {updateTarget.isPending ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Admin Console</CardTitle>

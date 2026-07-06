@@ -16,6 +16,7 @@ from app.api.v1.routers import (
     analytics,
     audit_log,
     auth,
+    company_targets,
     contacts,
     lead_scoring,
     leads,
@@ -78,3 +79,4 @@ app.include_router(audit_log.router, prefix="/api/v1/audit-log", tags=["audit-lo
 app.include_router(workflows.router, prefix="/api/v1/workflows", tags=["workflows"])
 app.include_router(notifications.router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
+app.include_router(company_targets.router, prefix="/api/v1/company-targets", tags=["company-targets"])

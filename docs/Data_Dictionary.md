@@ -221,3 +221,11 @@
 **New table `notifications`**: `id UUID PK`, `user_id FK`, `message VARCHAR(500)`, `link_entity_type VARCHAR(50) NULL`, `link_entity_id UUID NULL`, `is_read BOOLEAN DEFAULT false`, `created_at`. Traces to BR-22, FR-62–FR-63.
 
 **Updated total table count: 21** (17 from Phase 1/2 + `workflow_rules`, `workflow_execution_log`, `notifications`, and no new table for stage history since FR-48 derives it from `audit_logs`).
+
+---
+
+## Addendum: Phase 6 Schema Addition (2026-07-07)
+
+**New table `company_targets`**: `id UUID PK`, `quarter_start DATE UNIQUE` (first day of the quarter, e.g. `2026-07-01`), `target_amount NUMERIC(14,2)`, `created_at`/`updated_at`. One row per quarter; Admin-editable via `PATCH /company-targets/current`. Distinct from `users.quota` (BR-23, a per-rep figure) — this is a single company-wide target, added to close the Pipeline Coverage Ratio gap flagged in `docs/PHASE_REPORTS/phase_5.md`. Traces to BR-24, FR-66.
+
+**Updated total table count: 22** (21 above + `company_targets`).

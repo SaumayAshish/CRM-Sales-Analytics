@@ -34,10 +34,10 @@ export function useCreateOpportunity() {
   })
 }
 
-export function useUpdateOpportunity(id: string) {
+export function useUpdateOpportunity() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (payload: OpportunityUpdatePayload) => updateOpportunity(id, payload),
+    mutationFn: ({ id, payload }: { id: string; payload: OpportunityUpdatePayload }) => updateOpportunity(id, payload),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["opportunities"] }),
   })
 }

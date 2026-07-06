@@ -1,13 +1,14 @@
 # SQL Analytics Layer
 
-22 reusable SQL queries backing the 4 Power BI dashboards, each tested against the live seeded
+24 reusable SQL queries backing the 4 Power BI dashboards, each tested against the live seeded
 database (not just written and assumed correct). Most are thin wrappers around a permanent
-Postgres view (created in Alembic migrations 0004, 0007, 0008, 0009), so Power BI's Navigator can
-pick them up directly as tables; the rest are one-off queries not worth promoting to a view.
+Postgres view (created in Alembic migrations 0004, 0007, 0008, 0009, 0011), so Power BI's Navigator
+can pick them up directly as tables; the rest are one-off queries not worth promoting to a view.
 Queries 18–22 were added after cross-checking every dashboard visual against `docs/KPI_Catalog.md`
-(see that section below) surfaced 8 KPIs with no query yet.
+(see `analytics/KPI_CROSS_CHECK.md`) surfaced 8 KPIs with no query yet; queries 23–24 were added in
+Phase 6 to close the last 2 of those gaps for real (see scope notes 3 and 4 below, since revised).
 
-**Data volume:** ~11,100 business records across 21 tables. Every query here runs in under 10ms
+**Data volume:** ~11,100 business records across 22 tables. Every query here runs in under 10ms
 (checked via `EXPLAIN ANALYZE`) — no indexing beyond what already exists was needed. Materialized
 views were considered and rejected at this volume (see `analytics/README.md` for the trade-off).
 
@@ -35,6 +36,8 @@ views were considered and rejected at this volume (see `analytics/README.md` for
 | 20 | `20_unassigned_lead_backlog.sql` | Lead Funnel | Unassigned Lead Backlog | direct query |
 | 21 | `21_forecast_scenarios.sql` | Pipeline Health | Best-Case Forecast, Commit Forecast | direct query |
 | 22 | `22_forecast_variance.sql` | Pipeline Health | Forecast vs. Actual Variance | `vw_forecast` |
+| 23 | `23_pipeline_coverage_ratio.sql` | Pipeline Health, Executive Summary | Pipeline Coverage Ratio | `vw_pipeline_coverage` |
+| 24 | `24_revenue_closed_this_quarter.sql` | Executive Summary | Revenue Closed (Period) | direct query |
 
 ## Two scope notes worth reading before using these in the dashboard build
 
@@ -48,17 +51,21 @@ views were considered and rejected at this volume (see `analytics/README.md` for
    choices), so a strict "time since assignment" query returns zero rows for seed data. The proxy
    is a close approximation for Hot leads specifically, since FR-52 auto-assigns them in the same
    transaction as scoring.
-3. **`21_forecast_scenarios.sql`'s Commit Forecast is structurally always $0/NULL right now.**
-   `probability` is currently always set to exactly the opportunity's stage `default_probability`
-   (no per-deal override exists anywhere in the app yet), and Negotiation's stage default is 0.700
-   — below the KPI's 0.75 threshold — so "Negotiation AND probability >= 0.75" can never match.
-   Not patched around here; needs either a per-deal probability override feature or a BA decision
-   to raise Negotiation's default probability.
-4. **Pipeline Coverage Ratio (`Total Open Pipeline Value / Quarterly Revenue Target`) has no query
-   at all** — there's no company-wide quarterly revenue target anywhere in the schema (only
-   per-rep `quota`), and inventing one to fill this KPI in would be exactly the kind of fabricated
-   number this project's rules explicitly forbid. Flagged as an open item in
-   `docs/PHASE_REPORTS/phase_5.md`, not silently dropped.
+3. **Resolved in Phase 6 — `21_forecast_scenarios.sql`'s Commit Forecast used to be structurally
+   always $0/NULL**, because `probability` was always exactly the opportunity's stage
+   `default_probability` with no way to override it. FR-65 added a real per-deal override
+   (`PATCH /opportunities/{id}` accepts `probability`; the Kanban UI now exposes an editable field),
+   and the seed script gives a realistic fraction of Negotiation-stage deals a manually-elevated
+   probability, simulating actual rep usage of the new capability rather than leaving it
+   untested. Commit Forecast now returns real, non-zero figures.
+4. **Resolved in Phase 6 — Pipeline Coverage Ratio had no query at all**, since no company-wide
+   quarterly revenue target existed anywhere in the schema (only per-rep `quota`). Migration 0011
+   added a real `company_targets` table (BR-24), Admin-editable via `PATCH /company-targets/current`.
+   Running `23_pipeline_coverage_ratio.sql` against live data returns ~41x coverage (open pipeline
+   $164.1M vs. a $4M quarterly target) — a genuine finding about how the seed data's 1,286 open
+   deals are spread across a 13-month close-date window, not a bug in the new query. The target
+   figure was deliberately **not** tuned to make this ratio look tidier — that would be gaming the
+   metric the same way the original Quota Attainment bug did.
 
 ## A real bug this layer caught
 

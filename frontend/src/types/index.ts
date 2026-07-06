@@ -150,6 +150,14 @@ export interface RepPerformanceRow {
   quota_attainment: string | null
 }
 
+export interface CompanyTarget {
+  id: string
+  quarter_start: string
+  target_amount: number
+  created_at: string
+  updated_at: string
+}
+
 export interface ApiError {
   detail: string
 }

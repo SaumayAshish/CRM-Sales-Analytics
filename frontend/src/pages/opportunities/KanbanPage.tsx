@@ -4,8 +4,10 @@
 // approval" instruction (a DnD library isn't a state library, but kept out
 // anyway to minimize new dependencies for a board of this size).
 import { useState } from "react"
+import { Pencil } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { RoleGuard } from "@/components/shared/RoleGuard"
@@ -13,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { usePipelineStages } from "@/hooks/useLookups"
 import { useOpportunitiesList } from "@/hooks/useOpportunities"
 import { CreateOpportunityDialog } from "@/pages/opportunities/CreateOpportunityDialog"
+import { EditProbabilityDialog } from "@/pages/opportunities/EditProbabilityDialog"
 import { StageChangeDialog } from "@/pages/opportunities/StageChangeDialog"
 import type { Opportunity, PipelineStageOption } from "@/types"
 
@@ -27,6 +30,7 @@ export function KanbanPage() {
   const { data: opportunities, isLoading: oppsLoading } = useOpportunitiesList({ page_size: 200 })
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [pendingTarget, setPendingTarget] = useState<{ opportunityId: string; stage: PipelineStageOption } | null>(null)
+  const [editingProbability, setEditingProbability] = useState<Opportunity | null>(null)
 
   if (stagesLoading || oppsLoading) {
     return (
@@ -98,6 +102,24 @@ export function KanbanPage() {
                           {formatCurrency(opp.weighted_value)} wtd
                         </span>
                       </div>
+                      <div className="mt-1 flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          {Math.round(opp.probability * 100)}% probability
+                        </span>
+                        {canEdit && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="size-6"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingProbability(opp)
+                            }}
+                          >
+                            <Pencil className="size-3" />
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ))}
@@ -112,6 +134,7 @@ export function KanbanPage() {
         targetStage={pendingTarget?.stage ?? null}
         onClose={() => setPendingTarget(null)}
       />
+      <EditProbabilityDialog opportunity={editingProbability} onClose={() => setEditingProbability(null)} />
     </>
   )
 }

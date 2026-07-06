@@ -4,6 +4,27 @@ Step-by-step guide to build the 4 dashboards. Power BI Desktop has no scriptable
 this has to be done by hand — everything here has been reduced to exact clicks, field names, and
 DAX so there's no guesswork.
 
+## Phase 6 update — action needed on the existing `.pbix`
+
+The `crm_sales_analytics.pbix` and screenshots already in this repo were captured **before** two
+Phase 6 fixes. The underlying database has since been re-seeded, so the existing file is now
+stale in two ways:
+
+1. **Commit Forecast will no longer show "--"/blank.** `21_forecast_scenarios.sql` used to return
+   NULL for Commit Forecast because no opportunity's `probability` ever exceeded 0.75 (FR-65 didn't
+   exist yet). It's now a real feature (editable per-deal in the Kanban UI), and the seed script
+   gives ~30% of open Negotiation deals an elevated probability to simulate real usage — Commit
+   Forecast now computes to a genuine ~$6.5M. **Action:** open the `.pbix`, **Home → Refresh**, and
+   re-capture the Pipeline Health screenshot.
+2. **A new query, `23_pipeline_coverage_ratio.sql` (backed by `vw_pipeline_coverage`), has no
+   visual yet.** **Action:** add it as a new data source (same "Advanced options → SQL statement"
+   pattern as the other non-view queries in §1 step 7) and add a Card visual showing
+   `coverage_ratio` to the Pipeline Health page, labeled "Pipeline Coverage Ratio." Also add
+   `24_revenue_closed_this_quarter.sql`'s `revenue_closed_this_quarter` as a Card on the Executive
+   Summary page. Re-capture both screenshots afterward.
+
+Everything else in this document (visual layout for the other queries, RLS setup) is unaffected.
+
 **Prerequisite:** Power BI Desktop installed, and the database running (`docker compose up -d db`
 from the repo root, then confirm `docker exec crm-sales-analytics-db-1 psql -U crm_user -d
 crm_sales_analytics -c "SELECT 1"` returns a row). Power BI's PostgreSQL connector requires the
@@ -42,7 +63,7 @@ missing; let it install.
 | Visual | Type | Fields | Query |
 |---|---|---|---|
 | Total Pipeline Value (weighted + unweighted) | Card x2, or a single KPI visual | `total_open_pipeline_value`, `weighted_pipeline_value` | `17_kpis_summary` |
-| Revenue Closed This Quarter vs. Target | Gauge or Card | `revenue_closed_won` as value; target left blank (no company-wide quarterly target exists in the schema — see `KPI_CROSS_CHECK.md`'s Pipeline Coverage Ratio gap; don't fabricate a target number here) | `17_kpis_summary` |
+| Revenue Closed This Quarter | Card | `revenue_closed_this_quarter` | `24_revenue_closed_this_quarter` |
 | Win Rate Trend (6 months) | Line chart | X: `month`, Y: `win_rate` | `vw_win_rate_trend` |
 | Top 5 Accounts by Opportunity Value | Bar chart (horizontal) | Axis: `account_name`, Value: `total_value`, sorted descending, top 5 filter | `vw_account_pipeline_value` |
 | Sales Funnel Conversion | Funnel visual | Stages: Total Leads → Converted Leads → Total Opportunities → Won Opportunities (build as 4 manual measures from `vw_sales_funnel`'s single row — funnel visuals want one column of stage labels + one of values, so unpivot the 4 columns into 2 via Power Query's "Unpivot columns" on `04_sales_funnel_conversion`) | `vw_sales_funnel` |
@@ -67,7 +88,8 @@ Won, Closed Lost)."*
 | Forecast by Close Month | Line/column combo | X: `forecast_month`, Columns: `weighted_open_pipeline`, Line: `actual_closed_won` | `vw_forecast` |
 | Win Probability Distribution | Pie or donut | Legend: `probability_bucket`, Value: `total_value` | `vw_win_probability_buckets` |
 | Loss Reason Distribution | Bar chart | Axis: `loss_reason`, Value: `deal_count` | `19_loss_reason_distribution` |
-| Best-Case / Commit Forecast | 2 cards side by side | `best_case_forecast`, `commit_forecast` — **expect Commit to show blank/$0**, this is a documented data-model limitation (see `KPI_CROSS_CHECK.md`), not a build error | `21_forecast_scenarios` |
+| Best-Case / Commit Forecast | 2 cards side by side | `best_case_forecast`, `commit_forecast` — both should now show real non-zero figures (FR-65's per-deal probability override closed this gap in Phase 6) | `21_forecast_scenarios` |
+| Pipeline Coverage Ratio | Card | `coverage_ratio` — expect a large number (~40x) against live seed data; this is a genuine finding about the seed data's pipeline concentration, not a build error (see `KPI_CROSS_CHECK.md`) | `23_pipeline_coverage_ratio` |
 | Forecast vs. Actual Variance | Line chart | X: `forecast_month`, Y: `variance_ratio`; add a constant reference line at 0.15 (the KPI Catalog's 15% target threshold) via Analytics pane → Constant Line | `22_forecast_variance` |
 
 ---

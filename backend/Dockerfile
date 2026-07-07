@@ -18,6 +18,10 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+# Unbuffered stdout/stderr so migration, seed, and app logs stream to
+# Render's log tail immediately instead of sitting in Python's block
+# buffer (only flushed on exit/buffer-full when stdout isn't a TTY).
+ENV PYTHONUNBUFFERED=1
 
 COPY --chown=appuser:appuser . .
 RUN chmod +x entrypoint.sh

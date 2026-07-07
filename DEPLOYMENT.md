@@ -48,9 +48,40 @@ Already done — this repo is at `https://github.com/SaumayAshish/CRM-Sales-Anal
 4. Go to the `crm-sales-analytics-backend` service → **Environment** → paste the Neon connection
    string from step 2.3 into `DATABASE_URL` → **Save Changes** → Render redeploys automatically.
 5. Watch the build/deploy log for `Application startup complete` (from `entrypoint.sh` running
-   migrations + seed automatically against the Neon database, same as local `docker-compose up`).
+   `alembic upgrade head` against the Neon database). Unlike local `docker-compose up`, this does
+   **not** also run the seed script -- see the note below.
 6. Once live, note the backend's public URL (e.g. `https://crm-sales-analytics-backend.onrender.com`).
    Confirm it works: `curl https://<your-backend-url>/health` should return `{"status":"ok"}`.
+
+**Why seeding isn't automatic here (unlike local dev):** `entrypoint.sh` only auto-runs the seed
+script when `RUN_SEED_ON_BOOT=true` (set in `docker-compose.yml` for local dev; intentionally unset
+in `render.yaml`). Seeding was originally automatic everywhere, but on Render it caused every deploy
+to fail with `==> Timed Out`. Root cause: `score_and_assign_leads` (in `seed.py`) calls the real
+scoring/assignment engines once per lead, and each call issues several individual DB queries --
+roughly 5-8 queries x 3,000 leads, tens of thousands of round-trips. Against local Postgres
+(same Docker network, sub-millisecond round-trips) that finishes in seconds; against Neon over the
+public internet (~20-50ms/round-trip) it takes 10+ minutes, which blocks uvicorn from ever binding
+to `$PORT` and blows straight past Render's deploy health-check window -- every single redeploy,
+not an occasional flake. Seeding is a one-time action, not something that needs to happen on every
+boot, so it's now a manual step (below) instead of living in the hot startup path.
+
+## 3b. Seed demo data (one-time, manual)
+
+Do this once, right after the backend is live (step 3.6) and before verifying login below. Because
+of the timeout issue above, run the seed script from your own machine against Neon directly, not
+inside Render:
+
+1. In `backend/`, with your local venv active and pointed at the *Neon* database:
+   ```
+   DATABASE_URL="<neon-connection-string-from-step-2.3>" python -m app.scripts.seed
+   ```
+2. This takes several minutes (the same per-lead scoring/assignment queries as above, just running
+   once, deliberately, with no deploy timeout to race against). Output streams live — watch for
+   `Seed complete: ...` at the end. If it's interrupted before that line, nothing was committed
+   (single transaction, one `db.commit()` at the end) — just re-run the same command; `seed.py`'s
+   guard only skips if the `roles` table is already populated, which it won't be after a partial run.
+3. If you'd rather not run it from your own machine, Render's **Shell** tab (if available on your
+   plan) works the same way — same command, run manually and once.
 
 ## 4. Deploy frontend to Vercel
 
@@ -70,10 +101,9 @@ Already done — this repo is at `https://github.com/SaumayAshish/CRM-Sales-Anal
 2. Confirm: open the Vercel URL, log in with a seeded demo account (below). If login succeeds,
    CORS and the API connection are both correctly wired.
 
-## 6. Demo accounts (already seeded automatically)
+## 6. Demo accounts
 
-No manual seeding step is needed — `entrypoint.sh` runs `python -m app.scripts.seed` on the
-backend's first startup, same as local. One account per role:
+Seeded by the manual step in 3b, not automatically (see the note there). One account per role:
 
 | Role | Email | Password |
 |---|---|---|
@@ -93,4 +123,6 @@ backend's first startup, same as local. One account per role:
 
 Both Render and Vercel auto-deploy on every push to `main` once connected — no extra step needed
 for routine updates. A schema change still needs `alembic upgrade head` to run, which
-`entrypoint.sh` does automatically on every backend restart/redeploy.
+`entrypoint.sh` does automatically on every backend restart/redeploy. Seeding does **not** re-run
+automatically (see 3b) — it's a one-time step, already done, and re-running it manually is a no-op
+(`seed.py` aborts if the `roles` table is already populated).

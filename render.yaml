@@ -1,17 +1,18 @@
-# Render "Blueprint" — infra-as-code for the backend + Postgres.
-# Traces to: the project's Phase 6 deployment target (chosen over Railway/Fly.io
-# for a single-provider free tier covering both a web service and Postgres).
+# Render "Blueprint" — infra-as-code for the backend web service.
+# Traces to: the project's Phase 6 deployment target.
 #
-# Free-tier caveats (documented, not hidden): the free Postgres instance
-# expires after 90 days and must be recreated; the free web service spins
+# Postgres is hosted on Neon (not Render's own managed Postgres) --
+# Render's free tier caps an account at one free-tier database, and
+# that slot is already used by another project (helpdesk-ai-db). Neon's
+# free tier is used instead; see DEPLOYMENT.md for the exact setup
+# steps. DATABASE_URL below is intentionally left as a plaintext
+# placeholder, not `generateValue`/`fromDatabase` -- it must be pasted
+# in manually from the Neon dashboard after creating that database.
+#
+# Free-tier caveat (documented, not hidden): the free web service spins
 # down after 15 minutes idle, so the first request after idle takes
-# ~30-50s (cold start) -- both acceptable for a portfolio demo, not for
-# a real production SLA.
-databases:
-  - name: crm-sales-analytics-db
-    plan: free
-    postgresMajorVersion: "16"
-
+# ~30-50s (cold start) -- acceptable for a portfolio demo, not a real
+# production SLA.
 services:
   - type: web
     name: crm-sales-analytics-backend
@@ -22,15 +23,16 @@ services:
     healthCheckPath: /health
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: crm-sales-analytics-db
-          property: connectionString
+        sync: false
+        # Paste the Neon connection string here manually (Render dashboard
+        # -> this service -> Environment), in the form:
+        # postgresql://<user>:<password>@<neon-host>/<db>?sslmode=require
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: ENVIRONMENT
         value: production
       - key: CORS_ORIGINS
         # Update this after the Vercel frontend URL is known (see
-        # analytics/../DEPLOYMENT.md step 5) -- Render redeploys
-        # automatically when an env var changes.
+        # DEPLOYMENT.md step 5) -- Render redeploys automatically when
+        # an env var changes.
         value: http://localhost:5173

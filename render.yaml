@@ -1,0 +1,36 @@
+# Render "Blueprint" — infra-as-code for the backend + Postgres.
+# Traces to: CLAUDE.md Phase 6 deployment target (chosen over Railway/Fly.io
+# for a single-provider free tier covering both a web service and Postgres).
+#
+# Free-tier caveats (documented, not hidden): the free Postgres instance
+# expires after 90 days and must be recreated; the free web service spins
+# down after 15 minutes idle, so the first request after idle takes
+# ~30-50s (cold start) -- both acceptable for a portfolio demo, not for
+# a real production SLA.
+databases:
+  - name: crm-sales-analytics-db
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  - type: web
+    name: crm-sales-analytics-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: crm-sales-analytics-db
+          property: connectionString
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: CORS_ORIGINS
+        # Update this after the Vercel frontend URL is known (see
+        # analytics/../DEPLOYMENT.md step 5) -- Render redeploys
+        # automatically when an env var changes.
+        value: http://localhost:5173

@@ -59,7 +59,7 @@ This phase was verified against a **real** PostgreSQL 16 instance, not just impo
 
 ## 5. Open Items Carried Into Phase 3
 
-1. **Lead scoring/auto-assignment is not yet a rule *engine*** — Phase 2 persists `score`/`score_band`/`assigned_to` as plain columns (set only by the seed script), matching FR-01–FR-27 (plain CRUD). The actual rule-evaluation engine (FR-33–FR-37) reading `scoring_rules`/`scoring_criteria`/`assignment_rules` at request time is Phase 3 scope per `CLAUDE.md`.
+1. **Lead scoring/auto-assignment is not yet a rule *engine*** — Phase 2 persists `score`/`score_band`/`assigned_to` as plain columns (set only by the seed script), matching FR-01–FR-27 (plain CRUD). The actual rule-evaluation engine (FR-33–FR-37) reading `scoring_rules`/`scoring_criteria`/`assignment_rules` at request time is Phase 3 scope per the project's phase plan.
 2. **Audit log query/filter endpoints (FR-44)** deferred to Phase 3, though the audit *write* path is live now (see Phase 2 plan's reconciliation).
 3. **Router test coverage is uneven** — RBAC-critical and validation-critical paths are tested; some list/filter/404 branches on Accounts/Contacts/Activities/Opportunities aren't yet. Noted in `COVERAGE.md` as a natural Phase 3 backfill point rather than testing twice.
 4. **`app/schemas/common.py` (`Page`, `ErrorResponse`) is currently unused** — scaffolded for future pagination/error-envelope standardization but not yet wired into responses; flagging so it isn't mistaken for dead code review noise later.

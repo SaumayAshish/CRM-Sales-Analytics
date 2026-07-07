@@ -55,7 +55,7 @@ this phase also fixed, before UAT began:
 All five were caught by actually running the app/queries/tests, not by reading the code and
 assuming it worked — the same discipline maintained across every phase of this project.
 
-## 3. Definition of Done — final audit against `CLAUDE.md`
+## 3. Definition of Done — final audit against the project's constitution
 
 | Item | Status | Evidence |
 |---|---|---|

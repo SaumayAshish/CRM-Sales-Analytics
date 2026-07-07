@@ -45,7 +45,7 @@ graph TD
 | Testing | pytest + Vitest | Standard, well-documented tooling matching the backend/frontend split; supports the 70%+ backend coverage target. |
 | Deployment | Docker + docker-compose + GitHub Actions | One-command reproducibility (`docker-compose up`) for reviewers; CI green-on-main is a concrete, checkable signal of delivery discipline. |
 
-**Explicitly excluded (per CLAUDE.md):** Kafka, ClickHouse, microservices, Kubernetes, Redis. See ADR-001 and ADR-004 for the reasoning; any future request to introduce these requires a new ADR with written justification.
+**Explicitly excluded (per the project's technology constitution):** Kafka, ClickHouse, microservices, Kubernetes, Redis. See ADR-001 and ADR-004 for the reasoning; any future request to introduce these requires a new ADR with written justification.
 
 ---
 

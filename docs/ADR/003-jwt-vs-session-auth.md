@@ -9,7 +9,7 @@ The platform needs an authentication mechanism that supports 4 fixed roles (Admi
 
 ## Options Considered
 1. **JWT (stateless) bearer tokens**
-   - Pros: No server-side session store required — fits a simple Docker Compose deployment without adding Redis or a sticky-session layer (Redis is explicitly excluded per CLAUDE.md unless justified); the token itself carries role claims, so RBAC checks are a fast in-memory decode rather than a DB/cache lookup on every request; standard, well-understood pattern for REST APIs and easy to demonstrate/test with tools like Postman/pytest.
+   - Pros: No server-side session store required — fits a simple Docker Compose deployment without adding Redis or a sticky-session layer (Redis is explicitly excluded from this project's stack unless justified); the token itself carries role claims, so RBAC checks are a fast in-memory decode rather than a DB/cache lookup on every request; standard, well-understood pattern for REST APIs and easy to demonstrate/test with tools like Postman/pytest.
    - Cons: Revocation before expiry is harder (mitigated with short-lived access tokens + refresh token rotation); token size slightly larger than a session ID.
 2. **Server-side sessions (session ID in cookie, session state in a store)**
    - Pros: Instant revocation (delete the session server-side); smaller cookie payload.
@@ -24,5 +24,5 @@ The platform needs an authentication mechanism that supports 4 fixed roles (Admi
 ## Consequences
 - RBAC claims (role, user ID) are embedded in the access token, so every protected endpoint can authorize in-process without an extra database round-trip for the common case.
 - Logout / forced deactivation works by revoking the refresh token, which is checked only when a new access token is requested (low-frequency operation), keeping the hot path fast.
-- No Redis or additional infrastructure is introduced, keeping the stack aligned with CLAUDE.md's locked technology list.
+- No Redis or additional infrastructure is introduced, keeping the stack aligned with the project's locked technology list.
 - Trade-off accepted: an access token cannot be instantly invalidated mid-lifetime (up to ~15 minutes of validity even after revocation is requested) — acceptable for this system's risk profile (internal sales tool, not a financial transaction system) and documented here so it isn't mistaken for an oversight.

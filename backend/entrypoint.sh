@@ -1,5 +1,5 @@
 #!/bin/sh
-# Traces to: CLAUDE.md Definition of Done ("docker-compose up works in
+# Traces to: the project's Definition of Done ("docker-compose up works in
 # one command") -- runs migrations and seeds demo data automatically so
 # a fresh clone + `docker-compose up` needs no manual alembic/seed steps.
 # Both alembic upgrade and the seed script are idempotent (alembic no-ops

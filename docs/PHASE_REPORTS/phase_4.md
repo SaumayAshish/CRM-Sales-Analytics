@@ -21,7 +21,7 @@
 
 | Area | Summary |
 |---|---|
-| Scaffold | Vite + React 18.3.1 (pinned down from the template's default React 19 to match the CLAUDE.md stack lock) + TypeScript, Tailwind v4 + shadcn/ui (`new-york` style), ESLint replaced by the template's `oxlint`, Prettier, `@/*` path alias |
+| Scaffold | Vite + React 18.3.1 (pinned down from the template's default React 19 to match the project's stack lock) + TypeScript, Tailwind v4 + shadcn/ui (`new-york` style), ESLint replaced by the template's `oxlint`, Prettier, `@/*` path alias |
 | Auth | `AuthProvider` context decoding the JWT role claim client-side, `localStorage` + Axios interceptor token storage (per the Phase 4 kickoff decision), refresh-on-401 with single-flight dedup, `ProtectedRoute` wrapper, `RoleGuard` for UI gating (never the sole enforcement — backend `require_role` remains authoritative) |
 | Screens | Dashboard shell (sidebar/header/breadcrumbs/notification bell), Leads list (search, unassigned-queue toggle, pagination) + detail (score breakdown, timeline, convert action), Opportunity Kanban (native HTML5 drag-and-drop, stage-change dialog handling both loss-reason and override-reason flows), Account 360 (tabbed contacts/opportunities/timeline), Contacts list, Settings (profile, quota attainment, Admin Console pointer) |
 | Shared components | `DataTable` (generic, sortable), `StatusBadge`, `ActivityTimeline` (renders system-generated entries distinctly per FR-54), `RoleGuard`, `NotificationBell`, `EmptyState`, `ErrorBoundary` |
@@ -33,7 +33,7 @@
 
 ## 3. Manual Verification Performed (Live, Not Assumed)
 
-The Claude-in-Chrome browser extension was used to drive a real browser session against the live backend (seeded, `localhost:8000`) and frontend (`localhost:5173`) — not just `tsc`/build/unit-test checks:
+A browser automation tool was used to drive a real browser session against the live backend (seeded, `localhost:8000`) and frontend (`localhost:5173`) — not just `tsc`/build/unit-test checks:
 
 1. **Login flow** — real credentials, real JWT issuance, redirect to `/leads`.
 2. **Leads list + detail** — real data rendered (score bands, source names); clicked into a lead and confirmed the score breakdown, timeline, and convert action all pulled live data.
@@ -61,10 +61,10 @@ All five were found by actually exercising the running application end-to-end, c
 
 | Deviation | Reason |
 |---|---|
-| React pinned to 18.3.1, not the template's default 19.x | CLAUDE.md locks "React 18"; `create-vite`'s current template defaults to React 19. Downgraded `react`/`react-dom`/`@types/react`/`@types/react-dom` immediately after scaffolding, before writing any component code. |
+| React pinned to 18.3.1, not the template's default 19.x | The project's stack lock specifies "React 18"; `create-vite`'s current template defaults to React 19. Downgraded `react`/`react-dom`/`@types/react`/`@types/react-dom` immediately after scaffolding, before writing any component code. |
 | `zod` pinned to `^3.25.x`, not the newly-released `4.x` | `@hookform/resolvers@5.4.0` declares a peer dependency on `zod ^3.25.0`; npm installed the newer `zod@4.4.3` by default, which is not yet supported by the resolver and silently broke error-message mapping. Downgraded to the version the resolver actually supports. |
 | Contact detail page folded into Account 360 | The 7-screen list named "Contact list + detail page," but a contact's only meaningful context (its account, opportunities, activity) already lives on Account 360. Clicking a contact in the Contacts list navigates to its parent Account 360 page rather than a near-duplicate standalone page — a simplification made for reuse, not an omission. |
-| Admin Console is a pointer, not a full UI | The 7-screen list's "Settings page" scope was "user profile + role display," not full CRUD UIs for user/pipeline/scoring/workflow management (which already have working API endpoints from Phases 2–3). Settings links out to those endpoints with a clear note rather than building a second admin UI not asked for — avoiding scope creep per CLAUDE.md rule 8. |
+| Admin Console is a pointer, not a full UI | The 7-screen list's "Settings page" scope was "user profile + role display," not full CRUD UIs for user/pipeline/scoring/workflow management (which already have working API endpoints from Phases 2–3). Settings links out to those endpoints with a clear note rather than building a second admin UI not asked for — avoiding scope creep. |
 | DnD via native HTML5 API, not a library | Explicit instruction: no new state libraries without approval. A drag-and-drop library isn't a state library, but was kept out anyway to minimize new dependencies for a 6-column board of modest complexity. |
 
 ---

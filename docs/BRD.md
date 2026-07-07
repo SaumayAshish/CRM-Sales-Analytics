@@ -81,7 +81,7 @@ Sales headcount has grown 40% in the last 18 months; the informal spreadsheet-ba
 - Mobile native apps (iOS/Android) — responsive web only.
 - Multi-currency / multi-language support.
 - Third-party billing or payment processing integration.
-- Kafka/event-streaming, Kubernetes, microservices, or Redis-based infrastructure (per CLAUDE.md and ADR-001).
+- Kafka/event-streaming, Kubernetes, microservices, or Redis-based infrastructure (per the project's technology constitution and ADR-001).
 
 Any request to add the above must be raised as a formal scope change and evaluated against timeline/target-metric impact before acceptance — this guards against scope creep per delivery rule #8.
 
@@ -158,7 +158,7 @@ The full KPI catalog with formulas and SQL definitions lives in `KPI_Catalog.md`
 | RISK-03 | Data migration/seed data not representative enough to validate dashboards meaningfully | Low | Medium | Seed data generation explicitly targets realistic distributions (see Phase 2 seed data requirements) and is reviewed against expected KPI ranges before Phase 5. |
 | RISK-04 | RBAC misconfiguration exposes data to the wrong role | Low | High | RBAC enforced at the API layer (not just UI), covered by dedicated UAT cases (`UAT_Test_Scripts.md`) and backend tests. |
 | RISK-05 | Audit log gaps undermine the accountability objective (OBJ-05) | Low | High | Audit logging implemented as a cross-cutting concern (e.g., middleware/decorator on all mutating endpoints) rather than per-endpoint manual calls, reducing risk of a missed entity. |
-| RISK-06 | Single-developer delivery model creates timeline risk across 6 phases | Medium | Medium | Fixed phase gates with explicit sign-off before proceeding (per CLAUDE.md working rules); scope is deliberately bounded to the 7 modules. |
+| RISK-06 | Single-developer delivery model creates timeline risk across 6 phases | Medium | Medium | Fixed phase gates with explicit sign-off before proceeding (per the project's working rules); scope is deliberately bounded to the 7 modules. |
 
 ---
 

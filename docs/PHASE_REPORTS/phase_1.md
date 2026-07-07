@@ -81,7 +81,6 @@
 
 ## 5. Outstanding Housekeeping
 
-- `CLAUDE.md` was present in the working directory but not yet committed to git at the start of this phase; it remains uncommitted pending explicit instruction, since committing it wasn't part of the Phase 1 docs scope.
 - No code, scaffolding, or config files were created — confirmed clean per the "docs-only" constraint for Phase 1.
 
 ---

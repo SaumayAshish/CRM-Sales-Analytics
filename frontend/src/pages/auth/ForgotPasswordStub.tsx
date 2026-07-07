@@ -1,6 +1,6 @@
 // STUB: no backend endpoint exists for password reset (not built in
-// Phase 2/3). Labeled explicitly per CLAUDE.md rule 7 -- never invent
-// data or claim things that weren't built.
+// Phase 2/3). Labeled explicitly -- never invent data or claim things
+// that weren't built.
 import { Link } from "react-router-dom"
 
 import { Button } from "@/components/ui/button"

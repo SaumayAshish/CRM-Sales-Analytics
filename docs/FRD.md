@@ -140,7 +140,7 @@ Full schema detail lives in `ERD.md` and `Data_Dictionary.md`. At the functional
 
 ## 6. Integration Requirements
 
-**Explicitly labeled as stubs/mocks per CLAUDE.md Working Rule #7 — no real third-party integration is built in this phase.**
+**Explicitly labeled as stubs/mocks — no real third-party integration is built in this phase.**
 
 | Integration | Nature in this system | Label |
 |---|---|---|
@@ -180,7 +180,7 @@ Acceptance criteria are specified per-requirement in §2 above. Aggregate Phase 
 
 ## 10. Phase 3 Functional Requirements (Backend Advanced)
 
-Added at Phase 3 kickoff (2026-07-05), per CLAUDE.md's working rule that a Phase 1/2 doc gap discovered during implementation is corrected in the same commit rather than left stale. These FRs make the engines that Phase 2 left as inert configuration (`scoring_rules`, `assignment_rules`) actually run, and add the Backend Advanced capabilities named in `CLAUDE.md`'s 6-phase plan.
+Added at Phase 3 kickoff (2026-07-05), per the project's working rule that a Phase 1/2 doc gap discovered during implementation is corrected in the same commit rather than left stale. These FRs make the engines that Phase 2 left as inert configuration (`scoring_rules`, `assignment_rules`) actually run, and add the Backend Advanced capabilities named in the project's 6-phase plan.
 
 ### Pipeline Stage Engine
 

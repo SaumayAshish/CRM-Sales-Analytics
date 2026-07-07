@@ -227,8 +227,7 @@ What's next if this were a real, ongoing product rather than a fixed 6-phase del
 This project is delivered as a simulated real-world engagement: a Business Analyst (project owner)
 working with a Senior Full-Stack Engineer role, following a fixed 6-phase delivery plan with
 phase-gate approvals, full requirement traceability (`BR → FR → US → UAT`), and conventional
-commit discipline. See `CLAUDE.md` for the full project constitution (kept local/untracked by
-design — it's a working instruction set, not a deliverable).
+commit discipline.
 
 ## License & Author
 

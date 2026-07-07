@@ -10,7 +10,7 @@ as the default assignment strategy).
 
 Run via: python -m app.scripts.seed
 All demo users share the password "DemoPass123!" (documented here, not a
-production credential -- this is synthetic seed data, per CLAUDE.md rule 7).
+production credential -- this is synthetic seed data, clearly labeled as such).
 """
 import random
 from datetime import datetime, timedelta, timezone

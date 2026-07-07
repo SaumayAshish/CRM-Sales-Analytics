@@ -3,7 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // React.forwardRef is required here (not plain prop destructuring) because
-// this project is pinned to React 18 (CLAUDE.md stack lock), where function
+// this project is pinned to React 18 (the project's stack lock), where function
 // components cannot receive `ref` as a normal prop -- react-hook-form's
 // register() relies on this ref to read the input's value at validation time.
 const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(

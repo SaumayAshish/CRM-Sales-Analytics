@@ -13,7 +13,7 @@ The platform needs to serve 7 modules (Lead Management, Opportunity Pipeline, Ac
    - Cons: Less "resume-buzzword" appeal than microservices; scaling is vertical, not per-module.
 2. **Microservices (e.g., separate Lead service, Opportunity service, Analytics service)** — each module as an independently deployable service with its own datastore or schema, communicating via REST/events.
    - Pros: Independent scaling and deployment per module; industry-standard for large SaaS at scale.
-   - Cons: Massive overhead for a single-tenant, single-team project — service discovery, inter-service auth, distributed transactions for lead-to-opportunity conversion, and eventual consistency issues where the business actually needs strong consistency (audit log correctness). Would consume delivery time that should go toward feature depth and test coverage. Directly contradicts CLAUDE.md's explicit exclusion of microservices.
+   - Cons: Massive overhead for a single-tenant, single-team project — service discovery, inter-service auth, distributed transactions for lead-to-opportunity conversion, and eventual consistency issues where the business actually needs strong consistency (audit log correctness). Would consume delivery time that should go toward feature depth and test coverage. Directly contradicts the project's explicit exclusion of microservices.
 3. **Modular monolith with future extraction path** — same as Option 1, but with strict internal module boundaries (no cross-module direct DB access, only through service-layer functions) so it *could* be split later.
    - Pros: All benefits of Option 1, plus a documented seam if the project ever needed to scale out.
    - Cons: Slightly more upfront discipline in structuring internal service boundaries.
@@ -25,5 +25,5 @@ The platform needs to serve 7 modules (Lead Management, Opportunity Pipeline, Ac
 - Single Docker image + one docker-compose service for the backend, satisfying the "docker-compose up works in one command" Definition of Done item.
 - Transactions spanning multiple entities (lead conversion, opportunity stage change with audit write) are simple ACID transactions, not distributed sagas.
 - Test coverage is easier to reach because there's one test suite, one CI job, not N services each needing their own pipeline.
-- Trade-off accepted: this will not demonstrate microservice orchestration skills — that is an explicit non-goal per CLAUDE.md, and this ADR documents why, so it reads as a deliberate engineering decision rather than a gap.
+- Trade-off accepted: this will not demonstrate microservice orchestration skills — that is an explicit non-goal for this project, and this ADR documents why, so it reads as a deliberate engineering decision rather than a gap.
 - If a future phase required independent scaling of, say, the analytics workload, the modular boundaries in this ADR are the seam where that split would happen — captured here so the decision isn't re-litigated without cause.

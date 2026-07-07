@@ -1,5 +1,5 @@
 # Render "Blueprint" — infra-as-code for the backend + Postgres.
-# Traces to: CLAUDE.md Phase 6 deployment target (chosen over Railway/Fly.io
+# Traces to: the project's Phase 6 deployment target (chosen over Railway/Fly.io
 # for a single-provider free tier covering both a web service and Postgres).
 #
 # Free-tier caveats (documented, not hidden): the free Postgres instance

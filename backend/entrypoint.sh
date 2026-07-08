@@ -12,7 +12,7 @@
 # issues several individual queries (scoring_engine.py, assignment_engine.py)
 # -- roughly 5-8 queries x 3,000 leads. Against local Postgres
 # (docker-compose, where RUN_SEED_ON_BOOT=true) that's sub-second; against
-# Neon over the public internet at ~20-50ms/round-trip it's 10+ minutes,
+# Supabase over the public internet at ~20-50ms/round-trip it's 10+ minutes,
 # which blocks uvicorn from ever binding to $PORT and blows past Render's
 # deploy health-check window every time, regardless of retries. Seeding is a
 # one-time action, not a per-boot one, so on Render (RUN_SEED_ON_BOOT unset)

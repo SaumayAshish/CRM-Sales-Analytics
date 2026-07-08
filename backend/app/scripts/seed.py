@@ -262,8 +262,16 @@ def seed_lead_signal_activities(db, ref: dict, leads: list[Lead], users: list[Us
 
 
 def score_and_assign_leads(db, leads: list[Lead]) -> None:
-    """FR-49/FR-52 via the real engines, not a stand-in formula."""
-    for lead in leads:
+    """FR-49/FR-52 via the real engines, not a stand-in formula.
+
+    This is the slowest phase of seeding by far -- evaluate_lead_score() and
+    assign_lead_to_rep() each issue several individual queries per lead (not
+    a bulk query), so against a remote DB (Supabase) this is where minutes of
+    silent, no-output runtime come from. The progress print below exists so
+    a manual `python -m app.scripts.seed` run doesn't look hung (2026-07-07,
+    after this exact confusion during the Render deploy fix)."""
+    total = len(leads)
+    for i, lead in enumerate(leads, start=1):
         score, band, _matched, rule_id = evaluate_lead_score(db, lead)
         lead.score = score
         lead.score_band = band
@@ -282,6 +290,9 @@ def score_and_assign_leads(db, leads: list[Lead]) -> None:
         if lead.assigned_to is not None:
             conv_chance = {"Hot": 0.45, "Warm": 0.20, "Cold": 0.05}[band]
             lead.is_converted = random.random() < conv_chance
+
+        if i % 250 == 0 or i == total:
+            print(f"  Scoring/assigning leads: {i}/{total}...", flush=True)
     db.flush()
 
 
@@ -443,20 +454,30 @@ def main() -> None:
             print("Seed data already present (roles table is non-empty) -- aborting to avoid duplicates.")
             return
 
+        print("Seeding started. Against a remote DB (Supabase) this takes several minutes -- "
+              "the scoring/assignment phase below is the slow part and prints its own progress.", flush=True)
+
         ref = seed_reference_data(db)
+        print("  Reference data done.", flush=True)
         users = seed_users(db, ref)
+        print(f"  {len(users)} users done.", flush=True)
         direct_accounts, direct_contacts = seed_accounts_and_contacts(db, ref, users)
+        print(f"  {len(direct_accounts)} accounts, {len(direct_contacts)} contacts done.", flush=True)
         leads = seed_raw_leads(db, ref)
+        print(f"  {len(leads)} raw leads done.", flush=True)
         seed_lead_signal_activities(db, ref, leads, users)
+        print("  Lead signal activities done. Starting scoring/assignment (slowest phase)...", flush=True)
         score_and_assign_leads(db, leads)
         converted_accounts, converted_contacts, converted_opportunities = seed_lead_conversions(db, ref, leads)
         direct_opportunities = seed_opportunities(db, ref, direct_accounts, users)
+        print(f"  Conversions and {len(direct_opportunities)} direct opportunities done.", flush=True)
 
         accounts = direct_accounts + converted_accounts
         contacts = direct_contacts + converted_contacts
         opportunities = direct_opportunities + converted_opportunities
 
         seed_bulk_activities(db, ref, users, leads, accounts, contacts, opportunities, count=4500)
+        print("  Bulk activities done. Committing...", flush=True)
 
         db.commit()
 

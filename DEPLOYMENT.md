@@ -1,55 +1,65 @@
-# Deployment Guide — Neon (DB) + Render (backend) + Vercel (frontend)
+# Deployment Guide — Supabase (DB) + Render (backend) + Vercel (frontend)
 
-`render.yaml` and `frontend/vercel.json` are already committed and ready to use. Neon, Render, and
-Vercel all require account creation and clicking through their own OAuth/GitHub-connect flow —
+`render.yaml` and `frontend/vercel.json` are already committed and ready to use. Supabase, Render,
+and Vercel all require account creation and clicking through their own OAuth/GitHub-connect flow —
 that's something only you can do (I can prepare every config file and give exact steps, but I
 can't create accounts or click through signup on your behalf). Follow these steps in order.
 
-## Why Neon + Render + Vercel
+## Why Supabase + Render + Vercel
 
 **Render** was the original choice for backend + Postgres together (one provider, permanent free
 tier) over Railway (usage-based trial credit, needs a card eventually) or Fly.io (more ops
 complexity than this project needs). In practice, Render's free tier caps an account at **one**
 free-tier Postgres database — and that slot was already in use by another project
 (`helpdesk-ai-db`). Rather than delete that project's database or pay for a second Postgres
-instance, **Neon** hosts this project's database instead (separate free tier, no per-account cap
-conflict with Render). Render still hosts the backend web service. **Vercel** hosts the frontend,
-chosen over Netlify for zero-config Vite/React deploys with the fastest GitHub-push-to-deploy wiring.
+instance, **Supabase** hosts this project's database instead (separate free tier, no per-account
+cap conflict with Render, plus a hosted table editor/SQL console that's handy for demoing data to
+a non-technical audience). Render still hosts the backend web service. **Vercel** hosts the
+frontend, chosen over Netlify for zero-config Vite/React deploys with the fastest
+GitHub-push-to-deploy wiring.
 
-**Free-tier limits, stated up front:** Neon's free tier suspends an inactive database after a
-period of no activity (auto-resumes on the next connection, with a short cold-start delay);
-Render's free web service spins down after 15 minutes idle, so the first request after a lull
-takes ~30-50 seconds (cold start) — expected for a demo, not something to be alarmed by if a
-first-time visitor sees a slow initial load.
+**Free-tier limits, stated up front:** Supabase's free tier pauses a project after 7 days with no
+API activity (needs a manual "restore" click from the Supabase dashboard if that happens — it does
+NOT auto-resume like Neon did, so a demo left completely idle for a week needs a 1-click restore
+before it works again); Render's free web service spins down after 15 minutes idle, so the first
+request after a lull takes ~30-50 seconds (cold start) — expected for a demo, not something to be
+alarmed by if a first-time visitor sees a slow initial load.
 
 ## 1. Push to GitHub
 
 Already done — this repo is at `https://github.com/SaumayAshish/CRM-Sales-Analytics` on `main`.
 
-## 2. Create the database on Neon
+## 2. Create the database on Supabase
 
-1. Go to [neon.tech](https://neon.tech) → sign up / log in (GitHub OAuth is the fastest path).
-2. **Create a project** → name it e.g. `crm-sales-analytics` → Neon provisions a Postgres 16
-   database immediately (no separate "create database" step needed for the default `neondb`).
-3. On the project dashboard, find the **Connection string** (Dashboard → Connection Details).
-   Copy the one in the `postgresql://...` format, with `?sslmode=require` at the end — Neon
-   requires SSL and shows this correctly by default. Save this string; you'll paste it into
-   Render in the next step.
+1. Go to [supabase.com](https://supabase.com) → sign up / log in (GitHub OAuth is the fastest path).
+2. **New project** → name it e.g. `crm-sales-analytics` → pick a strong database password (you'll
+   need it in the next step; Supabase only shows it once) → pick any region → Create. Provisioning
+   takes ~1-2 minutes for a Postgres 16 database.
+3. Once live: **Project Settings → Database → Connection string**. Use the **direct connection**
+   (labeled "URI", port `5432`), NOT the "Transaction pooler" (port `6543`) — the pooler runs in
+   pgbouncer transaction mode, which breaks Alembic's DDL/session assumptions during migrations.
+   For this project's traffic (a demo, not production load), the direct connection is simpler and
+   sufficient.
+4. Copy that string and replace `[YOUR-PASSWORD]` with the password from step 2. Prefix the scheme
+   with `+psycopg2` since that's the driver this backend uses:
+   `postgresql+psycopg2://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require`
+   Save this string; you'll paste it into Render in the next step.
 
 ## 3. Deploy backend to Render
 
 1. Go to [render.com](https://render.com) → sign up / log in (GitHub OAuth is the fastest path).
 2. **New → Blueprint** → connect the `CRM-Sales-Analytics` GitHub repo → Render detects
    `render.yaml` and shows the `crm-sales-analytics-backend` web service it's about to create
-   (no database this time — that's on Neon now).
+   (no database this time — that's on Supabase now).
 3. Click **Apply**. Render will build the backend Docker image and then pause the deploy asking
    for the `DATABASE_URL` value (marked `sync: false` in `render.yaml`, meaning it's a manual
    secret, not auto-generated).
-4. Go to the `crm-sales-analytics-backend` service → **Environment** → paste the Neon connection
-   string from step 2.3 into `DATABASE_URL` → **Save Changes** → Render redeploys automatically.
+4. Go to the `crm-sales-analytics-backend` service → **Environment** → paste the Supabase
+   connection string from step 2.4 into `DATABASE_URL` → **Save Changes** → Render redeploys
+   automatically.
 5. Watch the build/deploy log for `Application startup complete` (from `entrypoint.sh` running
-   `alembic upgrade head` against the Neon database). Unlike local `docker-compose up`, this does
-   **not** also run the seed script -- see the note below.
+   `alembic upgrade head` against the Supabase database). Unlike local `docker-compose up`, this
+   does **not** also run the seed script -- see the note below.
 6. Once live, note the backend's public URL (e.g. `https://crm-sales-analytics-backend.onrender.com`).
    Confirm it works: `curl https://<your-backend-url>/health` should return `{"status":"ok"}`.
 
@@ -59,21 +69,21 @@ in `render.yaml`). Seeding was originally automatic everywhere, but on Render it
 to fail with `==> Timed Out`. Root cause: `score_and_assign_leads` (in `seed.py`) calls the real
 scoring/assignment engines once per lead, and each call issues several individual DB queries --
 roughly 5-8 queries x 3,000 leads, tens of thousands of round-trips. Against local Postgres
-(same Docker network, sub-millisecond round-trips) that finishes in seconds; against Neon over the
-public internet (~20-50ms/round-trip) it takes 10+ minutes, which blocks uvicorn from ever binding
-to `$PORT` and blows straight past Render's deploy health-check window -- every single redeploy,
-not an occasional flake. Seeding is a one-time action, not something that needs to happen on every
-boot, so it's now a manual step (below) instead of living in the hot startup path.
+(same Docker network, sub-millisecond round-trips) that finishes in seconds; against a hosted DB
+over the public internet (~20-50ms/round-trip) it takes 10+ minutes, which blocks uvicorn from ever
+binding to `$PORT` and blows straight past Render's deploy health-check window -- every single
+redeploy, not an occasional flake. Seeding is a one-time action, not something that needs to happen
+on every boot, so it's now a manual step (below) instead of living in the hot startup path.
 
 ## 3b. Seed demo data (one-time, manual)
 
 Do this once, right after the backend is live (step 3.6) and before verifying login below. Because
-of the timeout issue above, run the seed script from your own machine against Neon directly, not
-inside Render:
+of the timeout issue above, run the seed script from your own machine against Supabase directly,
+not inside Render:
 
-1. In `backend/`, with your local venv active and pointed at the *Neon* database:
+1. In `backend/`, with your local venv active and pointed at the *Supabase* database:
    ```
-   DATABASE_URL="<neon-connection-string-from-step-2.3>" python -m app.scripts.seed
+   DATABASE_URL="<supabase-connection-string-from-step-2.4>" python -m app.scripts.seed
    ```
 2. This takes several minutes (the same per-lead scoring/assignment queries as above, just running
    once, deliberately, with no deploy timeout to race against). Output streams live — watch for

@@ -27,7 +27,7 @@ services:
       CORS_ORIGINS: http://localhost:8080,http://localhost:5173
       # Local Postgres is same-host, so the seed script's per-lead scoring/
       # assignment queries (see entrypoint.sh) are fast here -- safe to run
-      # on every boot, unlike against a remote DB (Render/Neon).
+      # on every boot, unlike against a remote DB (Render/Supabase).
       RUN_SEED_ON_BOOT: "true"
       PYTHONUNBUFFERED: "1"
     ports:

@@ -5,7 +5,7 @@
 > bugs found and fixed by actually executing all 44 UAT cases against the live app, not just
 > reading the code.
 
-**Live demo:** pending deployment — see `DEPLOYMENT.md` (configs are ready; account creation is a manual step) · **Local demo:** `docker-compose up` — one command, see [Getting Started](#getting-started)
+**Live demo:** [crm-sales-analytics.vercel.app](https://crm-sales-analytics.vercel.app/) (frontend, Vercel) · [crm-sales-analytics-backend.onrender.com](https://crm-sales-analytics-backend.onrender.com) (API, Render — free tier, first request after idle takes ~30-50s to cold-start) · **Local demo:** `docker-compose up` — one command, see [Getting Started](#getting-started)
 
 **Demo accounts** (after `docker-compose up`, seeded automatically):
 
@@ -211,8 +211,6 @@ This project follows a docs-first delivery model — see the [BA Artifacts Index
 
 What's next if this were a real, ongoing product rather than a fixed 6-phase delivery:
 
-- Live deployment (Render + Vercel configs are ready in `render.yaml`/`frontend/vercel.json`;
-  `DEPLOYMENT.md` has the exact steps — the account-creation click-through is the one remaining step)
 - Static screenshot/GIF captures of the app screens (Kanban, Leads, Account 360, RBAC) for this README
 - Pipeline Coverage Ratio and Average Time-to-Assignment KPIs need either a BA scope decision or
   live-app usage data (both documented precisely in `analytics/KPI_CROSS_CHECK.md`, not silently dropped)

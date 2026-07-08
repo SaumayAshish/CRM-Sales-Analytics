@@ -35,15 +35,23 @@ Already done — this repo is at `https://github.com/SaumayAshish/CRM-Sales-Anal
 2. **New project** → name it e.g. `crm-sales-analytics` → pick a strong database password (you'll
    need it in the next step; Supabase only shows it once) → pick any region → Create. Provisioning
    takes ~1-2 minutes for a Postgres 16 database.
-3. Once live: **Project Settings → Database → Connection string**. Use the **direct connection**
-   (labeled "URI", port `5432`), NOT the "Transaction pooler" (port `6543`) — the pooler runs in
-   pgbouncer transaction mode, which breaks Alembic's DDL/session assumptions during migrations.
-   For this project's traffic (a demo, not production load), the direct connection is simpler and
-   sufficient.
-4. Copy that string and replace `[YOUR-PASSWORD]` with the password from step 2. Prefix the scheme
-   with `+psycopg2` since that's the driver this backend uses:
-   `postgresql+psycopg2://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require`
-   Save this string; you'll paste it into Render in the next step.
+3. Once live: **Connect** (top of the project dashboard) → **Connection String** tab → **Connection
+   Method** → choose **Session pooler**, not "Direct connection" and not "Transaction pooler".
+   - NOT Direct connection: its hostname (`db.<project-ref>.supabase.co`) resolves to an IPv6
+     address only. Render's outbound network has no IPv6 route to it, so every deploy fails with
+     `psycopg2.OperationalError: ... Network is unreachable` during the `alembic upgrade head`
+     step of `entrypoint.sh` -- this cost real debugging time before the cause was clear.
+   - NOT Transaction pooler (port `6543`): runs pgbouncer in transaction mode, which breaks
+     Alembic's DDL/session assumptions during migrations.
+   - Session pooler (port `5432`, hostname like `aws-<n>-<region>.pooler.supabase.com`) resolves
+     over IPv4 and behaves close enough to a direct connection for both Alembic and this app's
+     per-request session usage.
+4. Copy the URI shown and replace `[YOUR-PASSWORD]` with the password from step 2. Prefix the
+   scheme with `+psycopg2` since that's the driver this backend uses:
+   `postgresql+psycopg2://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:5432/postgres?sslmode=require`
+   Save this string; you'll paste it into Render in the next step. Use this same string for local
+   dev too (`backend/.env`) -- if your local network also lacks IPv6 egress, the direct connection
+   will time out there as well.
 
 ## 3. Deploy backend to Render
 

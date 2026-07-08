@@ -8,8 +8,12 @@
 # steps. DATABASE_URL below is intentionally left as a plaintext
 # placeholder, not `generateValue`/`fromDatabase` -- it must be pasted
 # in manually from the Supabase dashboard after creating that project
-# (use the *direct connection* string, port 5432, not the 6543 pooler --
-# see DEPLOYMENT.md for why).
+# (use the *Session pooler* connection string, not Direct connection --
+# Supabase's direct-connection host is IPv6-only, and Render's outbound
+# network has no IPv6 route to it, which fails every deploy with
+# "Network is unreachable". The Session pooler resolves over IPv4 and
+# works fine for Alembic + this app's per-request session usage. See
+# DEPLOYMENT.md for the exact string format.)
 #
 # Free-tier caveat (documented, not hidden): the free web service spins
 # down after 15 minutes idle, so the first request after idle takes
@@ -26,9 +30,11 @@ services:
     envVars:
       - key: DATABASE_URL
         sync: false
-        # Paste the Supabase direct connection string here manually (Render
-        # dashboard -> this service -> Environment), in the form:
-        # postgresql+psycopg2://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres?sslmode=require
+        # Paste the Supabase Session pooler connection string here manually
+        # (Render dashboard -> this service -> Environment), in the form:
+        # postgresql+psycopg2://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:5432/postgres?sslmode=require
+        # (Direct connection, i.e. db.<project-ref>.supabase.co, does NOT
+        # work from Render -- see the comment block above.)
       - key: JWT_SECRET_KEY
         generateValue: true
       - key: ENVIRONMENT
